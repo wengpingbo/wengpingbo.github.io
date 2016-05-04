@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>2.14, 2.15-offset 和 struct 成员异类访问 | Pingbo&#39;s Blog</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="description" content="今天在看 c-faq 的时候，碰到一个很奇怪的写法：
+1*(int *)((char *)structp + offsetf) = value;
+其中 offsetf 是由 offsetof 宏计算出来的。这个表达式是用来不通过名字来引用结构体成员，而是通过偏移量来引用这个成员。感觉很有意思，那咱就深究一下吧！
+首先，咱看一下 offsetof 这个 ANSI C 定义的宏，它是专门用来计算 st">
+<meta property="og:type" content="article">
+<meta property="og:title" content="2.14, 2.15-offset 和 struct 成员异类访问">
+<meta property="og:url" content="http://blog.miopeco.com/2013/07/27/c-faq.struct_offset/index.html">
+<meta property="og:site_name" content="Pingbo's Blog">
+<meta property="og:description" content="今天在看 c-faq 的时候，碰到一个很奇怪的写法：
+1*(int *)((char *)structp + offsetf) = value;
+其中 offsetf 是由 offsetof 宏计算出来的。这个表达式是用来不通过名字来引用结构体成员，而是通过偏移量来引用这个成员。感觉很有意思，那咱就深究一下吧！
+首先，咱看一下 offsetof 这个 ANSI C 定义的宏，它是专门用来计算 st">
+<meta property="og:updated_time" content="2016-05-04T04:11:19.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="2.14, 2.15-offset 和 struct 成员异类访问">
+<meta name="twitter:description" content="今天在看 c-faq 的时候，碰到一个很奇怪的写法：
+1*(int *)((char *)structp + offsetf) = value;
+其中 offsetf 是由 offsetof 宏计算出来的。这个表达式是用来不通过名字来引用结构体成员，而是通过偏移量来引用这个成员。感觉很有意思，那咱就深究一下吧！
+首先，咱看一下 offsetof 这个 ANSI C 定义的宏，它是专门用来计算 st">
+  
+  
+    <link rel="icon" href="/favicon.png">
+  
+  <link href='//fonts.useso.com/css?family=Open+Sans:400italic,400,600' rel='stylesheet' type='text/css'>
+  <link href="//fonts.useso.com/css?family=Source+Code+Pro" rel="stylesheet" type="text/css">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/font-awesome/css/font-awesome.min.css">
+  
+<!-- Google Analytics -->
+<script type="text/javascript">
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+ga('create', 'UA-62257978-1', 'auto');
+ga('send', 'pageview');
+
+</script>
+<!-- End Google Analytics -->
+
+
+</head>
+<body>
+  <div id="container">
+    <header id="header">
+  <div id="header-main" class="header-inner">
+    <div class="outer">
+      <a href="/" id="logo"><i class="logo"></i><span class="site-title">Pingbo&#39;s Blog</span></a>
+      <nav id="main-nav">
+        
+          <a class="main-nav-link" href="/">首页</a>
+        
+          <a class="main-nav-link" href="/archives">存档</a>
+        
+          <a class="main-nav-link" href="/about">关于这里</a>
+        
+          <a class="main-nav-link" href="/aboutme">关于我</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        <div class="profile" id="profile-nav">
+          <a id="profile-anchor" href="javascript:;"><img class="avatar" src="/media/avatar.jpg"><i class="fa fa-caret-down"></i></a>
+        </div>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" results="0" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit"> </button><input type="hidden" name="sitesearch" value="http://blog.miopeco.com"></form>
+      </div>
+    </div>
+  </div>
+  <div id="main-nav-mobile" class="header-sub header-inner">
+    <table class="menu outer">
+      <tr>
+      
+        <td><a class="main-nav-link" href="/">首页</a></td>
+      
+        <td><a class="main-nav-link" href="/archives">存档</a></td>
+      
+        <td><a class="main-nav-link" href="/about">关于这里</a></td>
+      
+        <td><a class="main-nav-link" href="/aboutme">关于我</a></td>
+      
+      <td>
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" results="0" class="search-form-input" placeholder="Search"><input type="hidden" name="sitesearch" value="http://blog.miopeco.com"></form>
+      </td>
+      </tr>
+    </table>
+  </div>
+  
+</header>
+    <div class="outer">
+      <aside id="profile">
+  <div class="inner profile-inner">
+  	<div class="base-info profile-block">
+		  <img id="avatar" src="/media/avatar.jpg">
+      <h2 id="name">Pingbo</h2>
+      <h3 id="title">程序猿</h3>
+      <span id="location"><i class="fa fa-map-marker"></i>Zhuhai, China</span>
+      <a id="follow" href="http://www.zhihu.com/people/wen-ping-bo">关注我</a>
+  	</div>
+    <div class="article-info profile-block">
+      <div class="article-info-block">
+        30
+        <span>文章</span>
+      </div>
+      <div class="article-info-block">
+        33
+        <span>标签</span>
+      </div>
+    </div>
+    <div class="contact-info profile-block">
+      <table class="contact-list">
+        <tr>
+        
+          <td><a href="https://github.com/wengpingbo" title="github"><i class="fa fa-github"></i></a></td>
+        
+          <td><a href="http://weibo.com/echowpb" title="weibo"><i class="fa fa-weibo"></i></a></td>
+        
+          <td><a href="https://plus.google.com/u/0/117917427002657037112" title="google-plus"><i class="fa fa-google-plus"></i></a></td>
+        
+          <td><a href="/atom.xml" title="rss"><i class="fa fa-rss"></i></a></td>
+        
+        </tr>
+      </table>
+    </div>
+  </div>
+</aside>
+      <section id="main"><article id="post-c-faq.struct_offset" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      2.14, 2.15-offset 和 struct 成员异类访问
+    </h1>
+  
+
+        <div class="article-meta">
+          <div class="article-date">
+  <i class="fa fa-calendar"></i>
+  <a href="/2013/07/27/c-faq.struct_offset/">
+    <time datetime="2013-07-26T16:00:00.000Z" itemprop="datePublished">2013-07-27</time>
+  </a>
+</div>
+          
+  <div class="article-category">
+  	<i class="fa fa-folder"></i>
+    <a class="article-category-link" href="/categories/language/">language</a><i class="fa fa-angle-right"></i><a class="article-category-link" href="/categories/language/c/">c</a>
+  </div>
+
+        </div>
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>&#x4ECA;&#x5929;&#x5728;&#x770B; c-faq &#x7684;&#x65F6;&#x5019;&#xFF0C;&#x78B0;&#x5230;&#x4E00;&#x4E2A;&#x5F88;&#x5947;&#x602A;&#x7684;&#x5199;&#x6CD5;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">*(int *)((char *)structp + offsetf) = value;</span><br></pre></td></tr></table></figure>
+<p>&#x5176;&#x4E2D; offsetf &#x662F;&#x7531; offsetof &#x5B8F;&#x8BA1;&#x7B97;&#x51FA;&#x6765;&#x7684;&#x3002;&#x8FD9;&#x4E2A;&#x8868;&#x8FBE;&#x5F0F;&#x662F;&#x7528;&#x6765;&#x4E0D;&#x901A;&#x8FC7;&#x540D;&#x5B57;&#x6765;&#x5F15;&#x7528;&#x7ED3;&#x6784;&#x4F53;&#x6210;&#x5458;&#xFF0C;&#x800C;&#x662F;&#x901A;&#x8FC7;&#x504F;&#x79FB;&#x91CF;&#x6765;&#x5F15;&#x7528;&#x8FD9;&#x4E2A;&#x6210;&#x5458;&#x3002;&#x611F;&#x89C9;&#x5F88;&#x6709;&#x610F;&#x601D;&#xFF0C;&#x90A3;&#x54B1;&#x5C31;&#x6DF1;&#x7A76;&#x4E00;&#x4E0B;&#x5427;&#xFF01;</p>
+<p>&#x9996;&#x5148;&#xFF0C;&#x54B1;&#x770B;&#x4E00;&#x4E0B; offsetof &#x8FD9;&#x4E2A; ANSI C &#x5B9A;&#x4E49;&#x7684;&#x5B8F;&#xFF0C;&#x5B83;&#x662F;&#x4E13;&#x95E8;&#x7528;&#x6765;&#x8BA1;&#x7B97; struct &#x6216;&#x8005; union &#x7C7B;&#x578B;&#x6210;&#x5458;&#x7684;&#x504F;&#x79FB;&#x91CF;&#x7684;&#x3002;&#x5B83;&#x7684;&#x5B9A;&#x4E49;&#x5728; stddef.h &#x8FD9;&#x4E2A;&#x5934;&#x6587;&#x4EF6;&#x4E2D;&#xFF0C;&#x7528;&#x6CD5;&#x5F88;&#x7B80;&#x5355;&#xFF0C;&#x7ED9;&#x4E2A;&#x4F8B;&#x5B50;&#x5C31;&#x660E;&#x767D;&#x4E86;&#xFF1A;</p>
+<a id="more"></a>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">struct test {</span><br><span class="line">	char c;</span><br><span class="line">	int i;</span><br><span class="line">};</span><br></pre></td></tr></table></figure>
+<p>&#x9488;&#x5BF9;&#x4E0A;&#x9762;&#x7684;&#x7ED3;&#x6784;&#x4F53;&#xFF0C;offsetof(struct test, i) &#x5C31;&#x4F1A;&#x8FD4;&#x56DE;&#x6210;&#x5458; i &#x5728;&#x8FD9;&#x4E2A;&#x7ED3;&#x6784;&#x4F53;&#x4E2D;&#x7684;&#x76F8;&#x5BF9;&#x504F;&#x79FB;&#x91CF;&#x3002;</p>
+<p>&#x7528;&#x6CD5;&#x6E05;&#x695A;&#x4E86;&#xFF0C;&#x73B0;&#x5728;&#x6211;&#x5BF9;&#x5B83;&#x7684;&#x5B9E;&#x73B0;&#x611F;&#x5174;&#x8DA3;&#xFF01;&#x6765;&#x770B;&#x770B;&#x5B83;&#x7684;&#x6E90;&#x7801;&#xFF01;</p>
+<p>&#x5728; linux &#x4E0B;&#x9762;&#xFF0C;&#x5982;&#x679C;&#x4F60;&#x5B89;&#x88C5;&#x4E86; kernel header &#x7684;&#x8BDD;&#xFF0C;&#x4F60;&#x53EF;&#x80FD;&#x4F1A;&#x627E;&#x5230;&#x8FD9;&#x4E2A;&#x6587;&#x4EF6;&#xFF1A;/usr/include/linux/stddef.h&#x3002;&#x8FD9;&#x4E2A;&#x6587;&#x4EF6;&#x4E0D;&#x662F; glibc &#x7684; stddef.h&#xFF0C;&#x800C;&#x662F; kernel &#x7528;&#x7684;&#x5934;&#x6587;&#x4EF6;&#xFF0C;&#x5982;&#x679C;&#x4F60;&#x6253;&#x5F00;&#x7684;&#x8BDD;&#xFF0C;&#x53D1;&#x73B0;&#x8FD9;&#x662F;&#x4E00;&#x4E2A;&#x7A7A;&#x7684;&#x5934;&#x6587;&#x4EF6;&#x3002;&#x5176;&#x5B9E;&#x7528;&#x6237;&#x6001;&#x7A0B;&#x5E8F;&#x771F;&#x771F;&#x5F15;&#x7528;&#x7684; stddef.h &#x5728;&#x4F60;&#x5BF9;&#x5E94;&#x7684;&#x7F16;&#x8BD1;&#x5668;&#x76F8;&#x5173;&#x76EE;&#x5F55;&#x4E0B;&#x9762;&#xFF0C;&#x7531;&#x4E8E;&#x6211;&#x7528;&#x7684;&#x662F; gcc&#xFF0C;&#x6240;&#x4EE5;&#x8981;&#x627E;&#x7684;&#x5934;&#x6587;&#x4EF6;&#x5728;&#x8FD9;&#xFF1A;/usr/lib/gcc/x86_64-linux-gnu/4.7/include/stddef.h</p>
+<p>&#x6253;&#x5F00;&#x8FD9;&#x4E2A;&#x5934;&#x6587;&#x4EF6;&#xFF0C;&#x5B9A;&#x4F4D;&#x5230; offsetof &#x5B8F;&#xFF0C;&#x53D1;&#x73B0;&#x5B83;&#x7684;&#x5B9A;&#x4E49;&#x662F;&#x8FD9;&#x6837;&#x7684;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">/* Offset of member MEMBER in a struct of type TYPE. */</span><br><span class="line">#define offsetof(TYPE, MEMBER) __builtin_offsetof (TYPE, MEMBER)</span><br></pre></td></tr></table></figure>
+<p>&#x597D;&#x5427;&#xFF0C;&#x770B;&#x6765; gcc &#x5E76;&#x6CA1;&#x6709;&#x6309;&#x7167; ANSI C &#x6765;&#x8D70;&#xFF0C;&#x5B83;&#x8FD9;&#x4E2A;&#x5730;&#x65B9;&#x505A;&#x4E86;&#x4E00;&#x4E2A;&#x8DF3;&#x8F6C;&#xFF0C;&#x7F51;&#x4E0A;&#x7684;&#x8BF4;&#x6CD5;&#x662F;&#x4E3A;&#x4E86;&#x517C;&#x5BB9; C++&#x3002;&#x5148;&#x4E0D;&#x7BA1;&#x4E86;&#xFF0C;&#x4ECE;&#x6807;&#x51C6; stddef.h &#x6252;&#x4E0B;&#x6765;&#x4E00;&#x4EFD;&#xFF0C;&#x53D1;&#x73B0;&#x6709;&#x4E24;&#x79CD;&#x7248;&#x672C;&#xFF0C;&#x6700;&#x4F20;&#x7EDF;&#x7684;&#x7248;&#x672C;&#x662F;&#x8FD9;&#x6837;&#x7684;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">#define offsetof(type,m) ((size_t)&amp;(((type *)0)-&gt;m))</span><br></pre></td></tr></table></figure>
+<p>&#x521D;&#x770B;&#xFF0C;&#x4F60;&#x4F1A;&#x89C9;&#x5F97;&#xFF0C;&#x989D;&#xFF0C;&#x6709;&#x70B9;&#x590D;&#x6742;&#x3002;&#x5176;&#x5B9E;&#x628A;&#x8FD9;&#x4E2A;&#x5206;&#x89E3;&#x4E00;&#x4E0B;&#xFF0C;&#x8FD8;&#x662F;&#x53EF;&#x4EE5;&#x7406;&#x89E3;&#x7684;&#x3002;&#x8FD9;&#x4E2A;&#x8868;&#x8FBE;&#x5F0F;&#x9996;&#x5148;&#x628A;&#x4E00;&#x4E2A; null &#x8F6C;&#x6362;&#x6210;&#x4E00;&#x4E2A; type &#x578B;&#x7684;&#x6307;&#x9488;&#xFF0C;&#x7136;&#x540E;&#x7528;&#x8FD9;&#x4E2A;&#x6307;&#x9488;&#x53BB;&#x5F15;&#x7528;&#x6210;&#x5458; m&#xFF0C;&#x7136;&#x540E;&#x53D6; m &#x7684;&#x5730;&#x5740;&#xFF0C;&#x5E76;&#x8F6C;&#x6362;&#x6210;&#x5927;&#x5C0F;&#x3002;&#x5C31;&#x76F8;&#x5F53;&#x4E8E;&#x628A;&#x4E00;&#x4E2A;&#x7ED3;&#x6784;&#x4F53;&#x548C; 0 &#x5BF9;&#x9F50;&#xFF0C;&#x7136;&#x540E; m &#x7684;&#x5730;&#x5740;&#x5C31;&#x662F;&#x8FD9;&#x4E2A;&#x6210;&#x5458;&#x76F8;&#x5BF9;&#x4E8E;&#x7ED3;&#x6784;&#x4F53;&#x7684;&#x76F8;&#x5BF9;&#x504F;&#x79FB;&#x91CF;&#x4E86;&#x3002;</p>
+<p>&#x4F46;&#x662F;&#xFF0C;&#x8FD9;&#x4E2A;&#x5E76;&#x4E0D;&#x662F;&#x4E00;&#x4E2A;&#x901A;&#x7528;&#x7684;&#x5B9E;&#x73B0;&#x65B9;&#x6CD5;&#x3002;&#x4F60;&#x53EF;&#x80FD;&#x4F1A;&#x8BF4;&#xFF0C;&#x5B83;&#x5F15;&#x7528;&#x4E86;&#x7A7A;&#x6307;&#x9488;&#xFF0C;&#x80AF;&#x5B9A;&#x8FD0;&#x884C;&#x4E0D;&#x4E86;&#x3002;&#x5176;&#x5B9E;&#x8FD9;&#x5E76;&#x4E0D;&#x7B97;&#x5F15;&#x7528;&#x7A7A;&#x6307;&#x9488;&#x95EE;&#x9898;&#xFF0C;&#x5C3D;&#x7BA1;&#x8868;&#x9762;&#x4E0A;&#x770B;&#x4E0A;&#x53BB;&#x662F;&#xFF0C;&#x56E0;&#x4E3A;&#x8FD9;&#x4E2A;&#x504F;&#x79FB;&#x91CF;&#x662F;&#x5728;&#x7F16;&#x8BD1;&#x65F6;&#x786E;&#x5B9A;&#x7684;&#xFF0C;&#x5E76;&#x4E0D;&#x662F;&#x5728;&#x8FD0;&#x884C;&#x65F6;&#x3002;&#x4F46;&#x662F;&#x8FD8;&#x662F;&#x4F1A;&#x6709;&#x4E00;&#x4E9B;&#x7F16;&#x8BD1;&#x5668;&#x62D2;&#x7EDD;&#x63A5;&#x53D7;&#x8FD9;&#x79CD;&#x5199;&#x6CD5;&#xFF0C;&#x8FD9;&#x8981;&#x770B;&#x5177;&#x4F53;&#x7684;&#x7F16;&#x8BD1;&#x5668;&#x7684;&#x5B9E;&#x73B0;&#x4E86;&#x3002;</p>
+<p>&#x65E2;&#x7136;&#x90A3;&#x4E2A;&#x7248;&#x672C;&#x4E0D;&#x662F;&#x901A;&#x7528;&#x7684;&#xFF0C;&#x90A3;&#x4E48;&#x4FEE;&#x6539;&#x4E00;&#x4E0B;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">#define offsetof(type,m) ( (size_t) (((char *)&amp;(((type *)0)-&gt;m)) - (char *)((type *)0)) )</span><br></pre></td></tr></table></figure>
+<p>&#x597D;&#x5427;&#xFF0C;&#x8FD9;&#x4E2A;&#x66F4;&#x590D;&#x6742;&#x4E86;&#x3002;&#x8FD9;&#x4E2A;&#x6BD4;&#x4E0A;&#x4E00;&#x4E2A;&#x7248;&#x672C;&#x591A;&#x505A;&#x4E86;&#x4E24;&#x4EF6;&#x4E8B;&#xFF0C;&#x4E00;&#x4E2A;&#x662F;&#x51CF;&#x53BB; 0 &#x7684;&#x5730;&#x5740;&#xFF0C;&#x8FD9;&#x53EF;&#x4EE5;&#x907F;&#x514D;&#x4E00;&#x4E9B;&#x7F16;&#x8BD1;&#x5668;&#x7684; null &#x5E76;&#x4E0D;&#x662F; 0 &#x7684;&#x60C5;&#x51B5;&#xFF1B;&#x53E6;&#x5916;&#x4E00;&#x4E2A;&#x662F;&#x5728;&#x505A;&#x51CF;&#x6CD5;&#x7684;&#x65F6;&#x5019;&#xFF0C;&#x5168;&#x90E8;&#x8F6C;&#x6210; char * &#x7684;&#x7C7B;&#x578B;&#xFF0C;&#x8FD9;&#x5C31;&#x53EF;&#x4EE5;&#x4FDD;&#x8BC1;&#x6700;&#x540E;&#x8BA1;&#x7B97;&#x7684;&#x7ED3;&#x679C;&#x662F;&#x4EE5;&#x5B57;&#x8282;&#x4E3A;&#x5355;&#x4F4D;&#x3002;</p>
+<p>&#x53EF;&#x80FD;&#x4F60;&#x4F1A;&#x8BF4;&#xFF0C;&#x8FD9;&#x4E2A;&#x7248;&#x672C;&#x8FD8;&#x662F;&#x6CA1;&#x6709;&#x89E3;&#x51B3; null &#x6307;&#x9488;&#x5F15;&#x7528;&#x7684;&#x95EE;&#x9898;&#xFF0C;&#x90A3;&#x4E48;&#x5C31;&#x5B66;&#x5B66; gcc &#x628A;&#xFF0C;&#x76F4;&#x63A5;&#x7528;&#x4E00;&#x4E2A;&#x51FD;&#x6570; __builtin_offsetof&#xFF0C;&#x8FD9;&#x4E2A;&#x4E0D;&#x4F46;&#x53EF;&#x4EE5;&#x8BA1;&#x7B97; struct &#x7684;&#x504F;&#x79FB;&#x91CF;&#xFF0C;&#x8FD8;&#x80FD;&#x8BA1;&#x7B97; class &#x7684;&#x504F;&#x79FB;&#x91CF;&#x3002;</p>
+<p>OK&#xFF0C;&#x6E05;&#x695A;&#x4E86; offsetof &#x7684;&#x5B9E;&#x73B0;&#x540E;&#xFF0C;&#x54B1;&#x518D;&#x56DE;&#x8FC7;&#x5934;&#x6765;&#x770B;&#x770B;&#x90A3;&#x4E2A; struct &#x6210;&#x5458;&#x7684;&#x5F02;&#x7C7B;&#x8BBF;&#x95EE;&#xFF1A;</p>
+<p>&#x5148;&#x5B9A;&#x4E49;&#x4E00;&#x4E2A;&#x7ED3;&#x6784;&#x4F53;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">struct test {</span><br><span class="line">	char c;</span><br><span class="line">	int i;</span><br><span class="line">	long l;</span><br><span class="line">	double t;</span><br><span class="line">};</span><br></pre></td></tr></table></figure>
+<p>&#x518D;&#x521D;&#x59CB;&#x5316;&#x4E00;&#x4E2A;&#x5B9E;&#x4F8B;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">struct test st;</span><br></pre></td></tr></table></figure>
+<p>&#x5047;&#x5982;&#x6211;&#x8981;&#x628A; st &#x4E2D;&#x7684; t &#x8D4B;&#x503C;&#x4E3A; 7.89&#xFF0C;&#x6B63;&#x5E38;&#x7684;&#x5199;&#x6CD5;&#xFF0C;&#x5E94;&#x8BE5;&#x662F;&#x8FD9;&#x6837;&#x7684;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">st.t=7.89;</span><br></pre></td></tr></table></figure>
+<p>&#x90A3;&#x4E48;&#xFF0C;&#x770B;&#x4E00;&#x4E0B;&#x53E6;&#x7C7B;&#x5199;&#x6CD5;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">*(double *)((char *)&amp;st+offsetof(struct test, t))=7.89;</span><br></pre></td></tr></table></figure>
+<p>&#x5982;&#x679C;&#x4F60;&#x771F;&#x7684;&#x770B;&#x61C2;&#x4E86; offsetof &#x7684;&#x5B9E;&#x73B0;&#xFF0C;&#x90A3;&#x8FD9;&#x4E2A;&#x4E5F;&#x5C31;&#x4E0D;&#x662F;&#x95EE;&#x9898;&#x4E86;&#x3002;</p>
+<p>&#x5176;&#x5B9E;&#x5728; kernel &#x5F00;&#x53D1;&#x4E2D;&#xFF0C;&#x8FD8;&#x6709;&#x4E00;&#x4E2A;&#x7C7B;&#x4F3C;&#x7684;&#x7528;&#x6CD5;&#xFF0C;&#x90A3;&#x5C31;&#x662F; container_of&#xFF0C;&#x5B83;&#x662F;&#x8FD9;&#x6837;&#x5B9A;&#x4E49;&#x7684;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">#define container_of(ptr, type, member) ({ \</span><br><span class="line">const typeof( ((type *)0)-&gt;member ) *__mptr = (ptr); \</span><br><span class="line">(type *)( (char *)__mptr - offsetof(type,member) );})</span><br></pre></td></tr></table></figure>
+<p>&#x4E0A;&#x9762;&#x90A3;&#x4E2A;&#x7528;&#x6CD5;&#xFF0C;&#x662F;&#x901A;&#x8FC7; struct &#x7684;&#x9996;&#x5730;&#x5740;&#xFF0C;&#x52A0;&#x4E0A;&#x76F8;&#x5BF9;&#x504F;&#x79FB;&#x91CF;&#x6765;&#x786E;&#x5B9A;&#x67D0;&#x4E2A;&#x6210;&#x5458;&#x7684;&#x5730;&#x5740;&#x3002;&#x800C; container_of &#x662F;&#x901A;&#x8FC7;&#x7ED3;&#x6784;&#x4F53;&#x5185;&#x90E8;&#x7684;&#x4E00;&#x4E2A;&#x6210;&#x5458;&#x5730;&#x5740;&#xFF0C;&#x51CF;&#x53BB;&#x5B83;&#x7684;&#x504F;&#x79FB;&#x91CF;&#xFF0C;&#x4ECE;&#x800C;&#x5F97;&#x5230;&#x5B83;&#x7684;&#x7236;&#x7ED3;&#x6784;&#x4F53;&#x7684;&#x9996;&#x5730;&#x5740;&#x3002;&#x5C31;&#x76F8;&#x5F53;&#x4E8E;&#x4E00;&#x4E2A;&#x6307;&#x9488;&#x5F80;&#x4E0B;&#x79FB;&#xFF0C;&#x4E00;&#x4E2A;&#x5F80;&#x4E0A;&#x79FB;&#xFF0C;&#x539F;&#x7406;&#x662F;&#x4E00;&#x6837;&#x7684;&#xFF01;</p>
+<p>&#x9644;&#x4E0A;&#x6211;&#x5199;&#x8FD9;&#x4E2A;&#x6587;&#x7AE0;&#x7684;&#x65F6;&#x5019;&#xFF0C;&#x5199;&#x7684;&#x5B9E;&#x9A8C;&#x4EE3;&#x7801;&#xFF0C;&#x53EF;&#x4EE5;&#x81EA;&#x5DF1;&#x8BD5;&#x4E00;&#x8BD5;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">// file test.c</span><br><span class="line">#include &lt;stdio.h&gt;</span><br><span class="line"></span><br><span class="line">//#define offsetof(type,m) ((size_t)&amp;(((type *)0)-&gt;m))</span><br><span class="line">#define offsetof(type,m) ( (size_t) (((char *)&amp;(((type *)0)-&gt;m)) - (char *)((type *)0)) )</span><br><span class="line"></span><br><span class="line">struct test {</span><br><span class="line">	char c;</span><br><span class="line">	int i;</span><br><span class="line">	long l;</span><br><span class="line">	double t;</span><br><span class="line">};</span><br><span class="line"></span><br><span class="line">int main(int argc,char *argv[])</span><br><span class="line">{</span><br><span class="line">	struct test st;</span><br><span class="line">	printf(&quot;t pre: %f\n&quot;,st.t);</span><br><span class="line">	*(double *)((char *)&amp;st+offsetof(struct test, t))=7.89;</span><br><span class="line">	printf(&quot;i after:%f\n&quot;,st.t);</span><br><span class="line">	return 0;</span><br><span class="line">}</span><br></pre></td></tr></table></figure>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://blog.miopeco.com/2013/07/27/c-faq.struct_offset/" data-id="cinsczq54001e1uzesau13qro" class="article-share-link">分享到</a>
+      
+        <a href="http://blog.miopeco.com/2013/07/27/c-faq.struct_offset/#disqus_thread" class="article-comment-link">评论</a>
+      
+      
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/c/">c</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/c-faq/">c-faq</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2013/07/29/c-faq.brance_seq/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          3.4-括号与求值顺序
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2013/07/26/c-faq.designated_init/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">2.10-designated initializer</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+<section id="comments">
+  <div id="disqus_thread">
+    <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  </div>
+</section>
+</section>
+      
+        <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget">
+      <ul id="recent-post" class="no-thumbnail">
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category"><a class="article-category-link" href="/categories/吐槽/">吐槽</a></p>
+              <p class="item-title"><a href="/2016/05/04/baidu-clear/" class="title">净化百度，从我做起</a></p>
+              <p class="item-date"><time datetime="2016-05-04T04:19:07.000Z" itemprop="datePublished">2016-05-04</time></p>
+            </div>
+          </li>
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category"><a class="article-category-link" href="/categories/linux/">linux</a></p>
+              <p class="item-title"><a href="/2015/06/10/bash_space/" class="title">BASH 中的空格</a></p>
+              <p class="item-date"><time datetime="2015-06-09T16:00:00.000Z" itemprop="datePublished">2015-06-10</time></p>
+            </div>
+          </li>
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category"><a class="article-category-link" href="/categories/linux/">linux</a></p>
+              <p class="item-title"><a href="/2015/06/03/bash_print_animation/" class="title">终端中的动画</a></p>
+              <p class="item-date"><time datetime="2015-06-02T16:00:00.000Z" itemprop="datePublished">2015-06-03</time></p>
+            </div>
+          </li>
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category"><a class="article-category-link" href="/categories/linux/">linux</a></p>
+              <p class="item-title"><a href="/2015/06/02/bash_dirstack/" class="title">BASH 的目录切换</a></p>
+              <p class="item-date"><time datetime="2015-06-01T16:00:00.000Z" itemprop="datePublished">2015-06-02</time></p>
+            </div>
+          </li>
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category"><a class="article-category-link" href="/categories/linux/">linux</a></p>
+              <p class="item-title"><a href="/2015/06/01/bash_debug/" class="title">BASH 的调试手段</a></p>
+              <p class="item-date"><time datetime="2015-05-31T16:00:00.000Z" itemprop="datePublished">2015-06-01</time></p>
+            </div>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">分类</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/android/">android</a><span class="category-list-count">3</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/language/">language</a><span class="category-list-count">13</span><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/language/c/">c</a><span class="category-list-count">13</span></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><span class="category-list-count">11</span><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/qemu/">qemu</a><span class="category-list-count">1</span></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/security/">security</a><span class="category-list-count">2</span><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/security/android/">android</a><span class="category-list-count">1</span></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/吐槽/">吐槽</a><span class="category-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/ADBlock/" style="font-size: 10px;">ADBlock</a> <a href="/tags/Baidu/" style="font-size: 10px;">Baidu</a> <a href="/tags/Lantern/" style="font-size: 10px;">Lantern</a> <a href="/tags/adb/" style="font-size: 10px;">adb</a> <a href="/tags/android/" style="font-size: 13.33px;">android</a> <a href="/tags/arm/" style="font-size: 10px;">arm</a> <a href="/tags/assignment-word/" style="font-size: 10px;">assignment word</a> <a href="/tags/bash/" style="font-size: 13.33px;">bash</a> <a href="/tags/bashdb/" style="font-size: 10px;">bashdb</a> <a href="/tags/c/" style="font-size: 20px;">c</a> <a href="/tags/c-faq/" style="font-size: 20px;">c-faq</a> <a href="/tags/csi/" style="font-size: 10px;">csi</a> <a href="/tags/debug/" style="font-size: 10px;">debug</a> <a href="/tags/dirstack/" style="font-size: 10px;">dirstack</a> <a href="/tags/icd/" style="font-size: 10px;">icd</a> <a href="/tags/linux/" style="font-size: 16.67px;">linux</a> <a href="/tags/md5/" style="font-size: 10px;">md5</a> <a href="/tags/popd/" style="font-size: 10px;">popd</a> <a href="/tags/pushd/" style="font-size: 10px;">pushd</a> <a href="/tags/qemu/" style="font-size: 10px;">qemu</a> <a href="/tags/regmap/" style="font-size: 10px;">regmap</a> <a href="/tags/script-animation/" style="font-size: 10px;">script animation</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/sensor/" style="font-size: 10px;">sensor</a> <a href="/tags/smtp/" style="font-size: 10px;">smtp</a> <a href="/tags/space/" style="font-size: 10px;">space</a> <a href="/tags/syscall/" style="font-size: 10px;">syscall</a> <a href="/tags/touchscreen/" style="font-size: 10px;">touchscreen</a> <a href="/tags/tr/" style="font-size: 10px;">tr</a> <a href="/tags/unifdef/" style="font-size: 10px;">unifdef</a> <a href="/tags/vim/" style="font-size: 10px;">vim</a> <a href="/tags/条件编译/" style="font-size: 10px;">条件编译</a> <a href="/tags/逆向/" style="font-size: 10px;">逆向</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">归档</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/05/">五月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/06/">六月 2015</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/03/">三月 2015</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/09/">九月 2014</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/08/">八月 2014</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/07/">七月 2014</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/04/">四月 2014</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/09/">九月 2013</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/08/">八月 2013</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/07/">七月 2013</a><span class="archive-list-count">8</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/05/">五月 2013</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2012/12/">十二月 2012</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap widget-list">
+    <h3 class="widget-title">链接</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="http://tinylab.org">TINYLAB</a>
+          </li>
+        
+          <li>
+            <a href="http://oss.lzu.edu.cn">LZUOSS</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+
+  
+  <div id="toTop" class="fa fa-chevron-up"></div>
+</aside>
+      
+    </div>
+    <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      &copy; 2016 Pingbo<br>
+      Powered by <a href="http://hexo.io/" target="_blank">Hexo</a>. Theme by <a href="http://github.com/ppoffice">PPOffice</a>
+    </div>
+  </div>
+</footer>
+    
+
+<script>
+  var disqus_shortname = 'miopecolab';
+  (function(){
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+
+<script src="//ajax.useso.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+
+
+  <link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+  <script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+
+<script src="/js/script.js"></script>
+
+  </div>
+</body>
+</html>

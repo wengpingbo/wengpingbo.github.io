@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>Linux 系统调用 | Pingbo&#39;s Blog</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="description" content="系统调用是系统内核提供给用户态程序的一系列API，这样应用程序就可以通过系统调用来请求操作系统内核管理的资源[1]。本文尝试分析在Linux下是如何使用linux内核给我们提供的API，并分析其实现过程。 
+一、用户态不管我们是打开一个文件，接收一个socket包，还是获取当前进程信息，都需要调用内核给我们提供的API。这里，我们可以通过strace这个工具，来跟踪一个程序调用的系统函数。比如下面">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Linux 系统调用">
+<meta property="og:url" content="http://blog.miopeco.com/2013/09/12/linux_syscall/index.html">
+<meta property="og:site_name" content="Pingbo's Blog">
+<meta property="og:description" content="系统调用是系统内核提供给用户态程序的一系列API，这样应用程序就可以通过系统调用来请求操作系统内核管理的资源[1]。本文尝试分析在Linux下是如何使用linux内核给我们提供的API，并分析其实现过程。 
+一、用户态不管我们是打开一个文件，接收一个socket包，还是获取当前进程信息，都需要调用内核给我们提供的API。这里，我们可以通过strace这个工具，来跟踪一个程序调用的系统函数。比如下面">
+<meta property="og:updated_time" content="2016-05-04T04:11:19.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Linux 系统调用">
+<meta name="twitter:description" content="系统调用是系统内核提供给用户态程序的一系列API，这样应用程序就可以通过系统调用来请求操作系统内核管理的资源[1]。本文尝试分析在Linux下是如何使用linux内核给我们提供的API，并分析其实现过程。 
+一、用户态不管我们是打开一个文件，接收一个socket包，还是获取当前进程信息，都需要调用内核给我们提供的API。这里，我们可以通过strace这个工具，来跟踪一个程序调用的系统函数。比如下面">
+  
+  
+    <link rel="icon" href="/favicon.png">
+  
+  <link href='//fonts.useso.com/css?family=Open+Sans:400italic,400,600' rel='stylesheet' type='text/css'>
+  <link href="//fonts.useso.com/css?family=Source+Code+Pro" rel="stylesheet" type="text/css">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/font-awesome/css/font-awesome.min.css">
+  
+<!-- Google Analytics -->
+<script type="text/javascript">
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+ga('create', 'UA-62257978-1', 'auto');
+ga('send', 'pageview');
+
+</script>
+<!-- End Google Analytics -->
+
+
+</head>
+<body>
+  <div id="container">
+    <header id="header">
+  <div id="header-main" class="header-inner">
+    <div class="outer">
+      <a href="/" id="logo"><i class="logo"></i><span class="site-title">Pingbo&#39;s Blog</span></a>
+      <nav id="main-nav">
+        
+          <a class="main-nav-link" href="/">首页</a>
+        
+          <a class="main-nav-link" href="/archives">存档</a>
+        
+          <a class="main-nav-link" href="/about">关于这里</a>
+        
+          <a class="main-nav-link" href="/aboutme">关于我</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        <div class="profile" id="profile-nav">
+          <a id="profile-anchor" href="javascript:;"><img class="avatar" src="/media/avatar.jpg"><i class="fa fa-caret-down"></i></a>
+        </div>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" results="0" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit"> </button><input type="hidden" name="sitesearch" value="http://blog.miopeco.com"></form>
+      </div>
+    </div>
+  </div>
+  <div id="main-nav-mobile" class="header-sub header-inner">
+    <table class="menu outer">
+      <tr>
+      
+        <td><a class="main-nav-link" href="/">首页</a></td>
+      
+        <td><a class="main-nav-link" href="/archives">存档</a></td>
+      
+        <td><a class="main-nav-link" href="/about">关于这里</a></td>
+      
+        <td><a class="main-nav-link" href="/aboutme">关于我</a></td>
+      
+      <td>
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" results="0" class="search-form-input" placeholder="Search"><input type="hidden" name="sitesearch" value="http://blog.miopeco.com"></form>
+      </td>
+      </tr>
+    </table>
+  </div>
+  
+</header>
+    <div class="outer">
+      <aside id="profile">
+  <div class="inner profile-inner">
+  	<div class="base-info profile-block">
+		  <img id="avatar" src="/media/avatar.jpg">
+      <h2 id="name">Pingbo</h2>
+      <h3 id="title">程序猿</h3>
+      <span id="location"><i class="fa fa-map-marker"></i>Zhuhai, China</span>
+      <a id="follow" href="http://www.zhihu.com/people/wen-ping-bo">关注我</a>
+  	</div>
+    <div class="article-info profile-block">
+      <div class="article-info-block">
+        30
+        <span>文章</span>
+      </div>
+      <div class="article-info-block">
+        33
+        <span>标签</span>
+      </div>
+    </div>
+    <div class="contact-info profile-block">
+      <table class="contact-list">
+        <tr>
+        
+          <td><a href="https://github.com/wengpingbo" title="github"><i class="fa fa-github"></i></a></td>
+        
+          <td><a href="http://weibo.com/echowpb" title="weibo"><i class="fa fa-weibo"></i></a></td>
+        
+          <td><a href="https://plus.google.com/u/0/117917427002657037112" title="google-plus"><i class="fa fa-google-plus"></i></a></td>
+        
+          <td><a href="/atom.xml" title="rss"><i class="fa fa-rss"></i></a></td>
+        
+        </tr>
+      </table>
+    </div>
+  </div>
+</aside>
+      <section id="main"><article id="post-linux_syscall" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      Linux 系统调用
+    </h1>
+  
+
+        <div class="article-meta">
+          <div class="article-date">
+  <i class="fa fa-calendar"></i>
+  <a href="/2013/09/12/linux_syscall/">
+    <time datetime="2013-09-11T16:00:00.000Z" itemprop="datePublished">2013-09-12</time>
+  </a>
+</div>
+          
+  <div class="article-category">
+  	<i class="fa fa-folder"></i>
+    <a class="article-category-link" href="/categories/linux/">linux</a>
+  </div>
+
+        </div>
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x662F;&#x7CFB;&#x7EDF;&#x5185;&#x6838;&#x63D0;&#x4F9B;&#x7ED9;&#x7528;&#x6237;&#x6001;&#x7A0B;&#x5E8F;&#x7684;&#x4E00;&#x7CFB;&#x5217;API&#xFF0C;&#x8FD9;&#x6837;&#x5E94;&#x7528;&#x7A0B;&#x5E8F;&#x5C31;&#x53EF;&#x4EE5;&#x901A;&#x8FC7;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x6765;&#x8BF7;&#x6C42;&#x64CD;&#x4F5C;&#x7CFB;&#x7EDF;&#x5185;&#x6838;&#x7BA1;&#x7406;&#x7684;&#x8D44;&#x6E90;[1]&#x3002;&#x672C;&#x6587;&#x5C1D;&#x8BD5;&#x5206;&#x6790;&#x5728;Linux&#x4E0B;&#x662F;&#x5982;&#x4F55;&#x4F7F;&#x7528;linux&#x5185;&#x6838;&#x7ED9;&#x6211;&#x4EEC;&#x63D0;&#x4F9B;&#x7684;API&#xFF0C;&#x5E76;&#x5206;&#x6790;&#x5176;&#x5B9E;&#x73B0;&#x8FC7;&#x7A0B;&#x3002; </p>
+<h2 id="&#x4E00;-&#x7528;&#x6237;&#x6001;"><a href="#&#x4E00;&#x3001;&#x7528;&#x6237;&#x6001;" class="headerlink" title="&#x4E00;&#x3001;&#x7528;&#x6237;&#x6001;"></a>&#x4E00;&#x3001;&#x7528;&#x6237;&#x6001;</h2><p>&#x4E0D;&#x7BA1;&#x6211;&#x4EEC;&#x662F;&#x6253;&#x5F00;&#x4E00;&#x4E2A;&#x6587;&#x4EF6;&#xFF0C;&#x63A5;&#x6536;&#x4E00;&#x4E2A;socket&#x5305;&#xFF0C;&#x8FD8;&#x662F;&#x83B7;&#x53D6;&#x5F53;&#x524D;&#x8FDB;&#x7A0B;&#x4FE1;&#x606F;&#xFF0C;&#x90FD;&#x9700;&#x8981;&#x8C03;&#x7528;&#x5185;&#x6838;&#x7ED9;&#x6211;&#x4EEC;&#x63D0;&#x4F9B;&#x7684;API&#x3002;&#x8FD9;&#x91CC;&#xFF0C;&#x6211;&#x4EEC;&#x53EF;&#x4EE5;&#x901A;&#x8FC7;strace&#x8FD9;&#x4E2A;&#x5DE5;&#x5177;&#xFF0C;&#x6765;&#x8DDF;&#x8E2A;&#x4E00;&#x4E2A;&#x7A0B;&#x5E8F;&#x8C03;&#x7528;&#x7684;&#x7CFB;&#x7EDF;&#x51FD;&#x6570;&#x3002;&#x6BD4;&#x5982;&#x4E0B;&#x9762;&#x662F;&#x547D;&#x4EE4;&#x201D;strace whoami&#x201D;&#x7684;&#x8F93;&#x51FA;&#x7ED3;&#x679C;&#xFF1A;</p>
+<a id="more"></a>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">execve(&quot;/usr/bin/whoami&quot;, [&quot;whoami&quot;], [/* 65 vars */]) = 0</span><br><span class="line">brk(0)                                  = 0x100f000</span><br><span class="line">access(&quot;/etc/ld.so.nohwcap&quot;, F_OK)      = -1 ENOENT (No such file or directory)</span><br><span class="line">mmap(NULL, 8192, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0) = 0x7f8398cb2000</span><br><span class="line">...</span><br><span class="line">open(&quot;/usr/lib/locale/locale-archive&quot;, O_RDONLY|O_CLOEXEC) = 3</span><br><span class="line">fstat(3, {st_mode=S_IFREG|0644, st_size=7212544, ...}) = 0</span><br><span class="line">mmap(NULL, 7212544, PROT_READ, MAP_PRIVATE, 3, 0) = 0x7f8397ff2000</span><br><span class="line">close(3)                                = 0</span><br><span class="line">geteuid()                               = 1000</span><br><span class="line">...</span><br><span class="line">open(&quot;/etc/passwd&quot;, O_RDONLY|O_CLOEXEC) = 3</span><br><span class="line">lseek(3, 0, SEEK_CUR)                   = 0</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+<p>&#x6211;&#x4EEC;&#x53D1;&#x73B0;whoami&#x9996;&#x5148;&#x8C03;&#x7528;getuid&#x6765;&#x83B7;&#x53D6;&#x5F53;&#x524D;&#x6709;&#x6548;&#x7528;&#x6237;ID&#xFF0C;&#x7136;&#x540E;&#x6253;&#x5F00;&#x201D;/etc/passwd&#x201D;&#x6587;&#x4EF6;&#xFF0C;&#x5229;&#x7528;&#x4E4B;&#x524D;&#x83B7;&#x53D6;&#x5230;&#x7684;&#x7528;&#x6237;ID&#x6765;&#x83B7;&#x53D6;&#x5BF9;&#x5E94;&#x7684;&#x7528;&#x6237;&#x540D;&#xFF0C;&#x6700;&#x540E;&#x6253;&#x5370;&#x5230;&#x5F53;&#x524D;&#x7EC8;&#x7AEF;&#x4E0A;&#x3002; </p>
+<p>&#x5728;&#x8FD9;&#x4E2A;&#x8FC7;&#x7A0B;&#x4E2D;&#xFF0C;&#x5C31;&#x8C03;&#x7528;&#x4E86;execve, open, geteuid, read, write&#x7B49;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x3002;&#x4E00;&#x4E2A;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x5C31;&#x610F;&#x5473;&#x7740;&#x4E00;&#x6B21;&#x7528;&#x6237;&#x6001;&#x5230;&#x5185;&#x6838;&#x6001;&#x7684;&#x5207;&#x6362;&#xFF0C;&#x5E76;&#x4E14;&#x6BCF;&#x4E00;&#x4E2A;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x90FD;&#x4F1A;&#x548C;&#x4E00;&#x4E2A;&#x5185;&#x6838;&#x4E2D;&#x7684;&#x51FD;&#x6570;&#x76F8;&#x5BF9;&#x5E94;&#x3002;&#x8FD9;&#x91CC;&#x6211;&#x4EEC;&#x5C31;&#x4EE5;geteuid&#x8FD9;&#x4E2A;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x4E3A;&#x4F8B;&#xFF0C;&#x6765;&#x8DDF;&#x8E2A;&#x6574;&#x4E2A;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x5173;&#x7CFB;&#x3002; </p>
+<p>&#x9996;&#x5148;&#xFF0C;&#x6211;&#x4EEC;&#x5148;&#x81EA;&#x5DF1;&#x5B9E;&#x73B0;&#x4E00;&#x4E2A;&#x8C03;&#x7528;geteuid&#x7684;&#x5C0F;&#x7A0B;&#x5E8F;&#xFF0C;&#x4EE3;&#x7801;&#x5982;&#x4E0B;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">#include &lt;unistd.h&gt;</span><br><span class="line">#include &lt;sys/types.h&gt;</span><br><span class="line"></span><br><span class="line">int main(void)</span><br><span class="line">{</span><br><span class="line">	printf(&quot;current uid: %dn&quot;, geteuid());</span><br><span class="line">	return 0;</span><br><span class="line">}</span><br></pre></td></tr></table></figure>
+<p>&#x7F16;&#x8BD1;&#x6267;&#x884C;&#x540E;&#xFF0C;&#x6211;&#x8FD9;&#x91CC;&#x5F97;&#x5230;&#x7684;&#x7ED3;&#x679C;&#x662F;1000&#xFF0C;&#x4E5F;&#x5C31;&#x662F;&#x5F53;&#x524D;&#x7528;&#x6237;id&#x4E3A;1000&#x3002; </p>
+<p>&#x7136;&#x540E;&#xFF0C;&#x901A;&#x8FC7;&#x67E5;&#x770B;/usr/include/unistd.h&#x5934;&#x6587;&#x4EF6;&#xFF0C;&#x6211;&#x4EEC;&#x77E5;&#x9053;geteuid&#x7684;&#x5B9E;&#x73B0;&#x5728;libc&#x4E2D;&#x3002;&#x90A3;&#x4E48;&#x6211;&#x4EEC;&#x53EF;&#x4EE5;&#x5148;&#x53CD;&#x6C47;&#x7F16;&#x4E00;&#x4E0B;libc&#x8FD9;&#x4E2A;&#x5E93;&#xFF0C;&#x8FD9;&#x91CC;&#x5199;&#x4E86;&#x4E00;&#x4E2A;&#x811A;&#x672C;&#x6765;&#x4ECE;&#x4E00;&#x4E2A;&#x5171;&#x4EAB;&#x5E93;&#x4E2D;&#x53CD;&#x6C47;&#x7F16;&#x6307;&#x5B9A;&#x7684;&#x51FD;&#x6570;&#xFF0C;&#x811A;&#x672C;&#x5982;&#x4E0B;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br></pre></td><td class="code"><pre><span class="line">#!/bin/sh</span><br><span class="line">#file: dfunc</span><br><span class="line"></span><br><span class="line">########################</span><br><span class="line"># Global function</span><br><span class="line">########################</span><br><span class="line">error()</span><br><span class="line">{</span><br><span class="line">	echo &quot;$1&quot;</span><br><span class="line">	exit 1</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line">show_usage()</span><br><span class="line">{</span><br><span class="line">	echo &quot;This is a script to disassemble specified function in a shared library.&quot;</span><br><span class="line">	echo &quot;Author: WEN Pingbo wengpingbo@gmail.com&quot;</span><br><span class="line">	echo &quot;Date: 2013/09/11&quot;</span><br><span class="line">	echo &quot;Usage: ./dfunc [-f function name] [-l library path] [-c shift number]&quot;</span><br><span class="line">	echo &quot;Note: sometimes, you should using -c to disassemble more bytes because of alignments.&quot;</span><br><span class="line">}</span><br><span class="line"></span><br><span class="line">########################</span><br><span class="line"># Global function</span><br><span class="line">########################</span><br><span class="line"></span><br><span class="line"># default value</span><br><span class="line">func_name=&quot;fexecve&quot;</span><br><span class="line">target=&quot;/lib/x86_64-linux-gnu/libc-2.15.so&quot;</span><br><span class="line">caliberation=&quot;0&quot;</span><br><span class="line"></span><br><span class="line">if [ -n &quot;$1&quot; ] &amp;&amp; [ &quot;$1&quot; == &quot;-h&quot; ];then</span><br><span class="line">	show_usage</span><br><span class="line">	exit 0</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line"># parse the argument</span><br><span class="line">arg_ok=&quot;0&quot;</span><br><span class="line">while [ -n &quot;$1&quot; ]</span><br><span class="line">do</span><br><span class="line">if [ &quot;$1&quot; == &quot;-f&quot; ];then</span><br><span class="line">	shift</span><br><span class="line">	arg_ok=&quot;1&quot;</span><br><span class="line">	if [ -n &quot;$1&quot; ];then</span><br><span class="line">	   	func_name=&quot;$1&quot;</span><br><span class="line">		shift</span><br><span class="line">	fi</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">if [ &quot;$1&quot; == &quot;-l&quot; ];then</span><br><span class="line">	shift</span><br><span class="line">	arg_ok=&quot;1&quot;</span><br><span class="line">	if [ -n &quot;$1&quot; ];then</span><br><span class="line">		target=&quot;$1&quot;</span><br><span class="line">		shift</span><br><span class="line">	fi</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">if [ &quot;$1&quot; == &quot;-c&quot; ];then</span><br><span class="line">	shift</span><br><span class="line">	arg_ok=&quot;1&quot;</span><br><span class="line">	if [ -n &quot;$1&quot; ];then</span><br><span class="line">		caliberation=&quot;$1&quot;</span><br><span class="line">		shift</span><br><span class="line">	fi</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">[ &quot;$arg_ok&quot; == &quot;0&quot; ] &amp;&amp; shift</span><br><span class="line">arg_ok=&quot;0&quot;</span><br><span class="line">done</span><br><span class="line"></span><br><span class="line">offset=`readelf -s &quot;$target&quot; | grep &quot; &quot;$func_name&quot;&quot; | awk &apos;{print $3}&apos;`</span><br><span class="line"></span><br><span class="line">[ -z &quot;$offset&quot; ] &amp;&amp; error &quot;&quot;$func_name&quot; not found...&quot;</span><br><span class="line"></span><br><span class="line">offset=$(($offset + $caliberation))</span><br><span class="line"></span><br><span class="line"># convert dec to hex</span><br><span class="line">offset=`echo &quot;obase=16; ibase=10; &quot;$offset&quot;&quot; | bc`</span><br><span class="line"></span><br><span class="line">begin=`nm -D &quot;$target&quot; | grep &quot; &quot;$func_name&quot;$&quot; | awk &apos;{print $1}&apos;`</span><br><span class="line">end=`echo &quot;obase=16; ibase=16; ${begin^^} + ${offset^^}&quot; | bc`</span><br><span class="line"></span><br><span class="line">objdump -d --start-address=0x&quot;$begin&quot; --stop-address=0x&quot;$end&quot; &quot;$target&quot;</span><br></pre></td></tr></table></figure>
+<p>&#x8FD0;&#x884C;&#x8FD9;&#x4E2A;&#x811A;&#x672C;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./dfunc -f geteuid</span><br></pre></td></tr></table></figure>
+<p>&#x6211;&#x4EEC;&#x53D1;&#x73B0;&#x8FD9;&#x4E2A;&#x51FD;&#x6570;&#x7684;&#x53CD;&#x6C47;&#x7F16;&#x6307;&#x4EE4;&#x5F88;&#x7B80;&#x5355;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">mov    $0x6b,%eax</span><br><span class="line">syscall</span><br><span class="line">retq</span><br></pre></td></tr></table></figure>
+<p>&#x5148;&#x628A; 0x6b &#x653E;&#x5230;&#x5BC4;&#x5B58;&#x5668; eax &#x4E2D;&#xFF0C;&#x7136;&#x540E;&#x5C31;&#x6267;&#x884C;&#x4E00;&#x4E2A; syscall &#x7684;&#x6307;&#x4EE4;&#x3002;&#x6700;&#x540E;&#x662F;&#x8FD4;&#x56DE;&#x6307;&#x4EE4;&#x3002; </p>
+<p>syscall &#x662F;&#x4EC0;&#x4E48;&#x6307;&#x4EE4;&#xFF1F;&#x8FD9;&#x91CC;&#x7684; syscall &#x6307;&#x4EE4;&#x5C31;&#x662F;&#x5728; x86 &#x67B6;&#x6784;&#x4E0B;&#xFF0C;&#x4E13;&#x95E8;&#x4E3A;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x51C6;&#x5907;&#x7684;&#x6307;&#x4EE4;&#xFF08;SYSCALL/SYSENTER and SYSRET/SYSEXIT&#xFF09;&#x3002; </p>
+<p>&#x90A3; 0x6b &#x53C8;&#x662F;&#x4EC0;&#x4E48;&#xFF1F;&#x8FD9;&#x662F;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x53F7;&#xFF0C;&#x7528;&#x6765;&#x533A;&#x5206;&#x5176;&#x4ED6;&#x7684;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x3002;&#x73B0;&#x5728;&#x6211;&#x4EEC;&#x53EA;&#x662F;&#x770B;&#x5230;&#x4E86;&#x53CD;&#x6C47;&#x7F16;&#x7684;&#x4EE3;&#x7801;&#xFF0C;&#x800C;&#x8FD9;&#x4E9B;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x7684;&#x771F;&#x771F;&#x5B9E;&#x73B0;&#x53EF;&#x4EE5;&#x5728; glibc &#x7684;&#x6E90;&#x7801;&#x4E2D;&#x627E;&#x5230;[2]&#x3002;&#x5176;&#x5B9E;&#x5728;glibc&#x4E2D;&#x5E76;&#x6CA1;&#x6709;&#x53BB;&#x5B9E;&#x73B0;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#xFF0C;&#x800C;&#x662F;&#x5BF9;&#x4E0D;&#x540C;&#x7CFB;&#x7EDF;&#x5185;&#x6838;&#x7684;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x7684; wrapper&#x3002;&#x5728; sysdeps/unix/sysv/linux/syscalls.list &#x4E0B;&#xFF0C;&#x5C31;&#x5217;&#x51FA;&#x4E86;linux&#x4E0B;&#x9762;&#x6240;&#x6709;&#x7684;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#xFF0C;&#x90E8;&#x5206;&#x5982;&#x4E0B;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"># File name Caller  Syscall name    Args    Strong name Weak names</span><br><span class="line">getegid     -   getegid     Ei: __getegid   getegid</span><br><span class="line">geteuid     -   geteuid     Ei: __geteuid   geteuid</span><br><span class="line">getpgid     -   getpgid     i:i __getpgid   getpgid</span><br></pre></td></tr></table></figure>
+<p>&#x8FD9;&#x4E2A;&#x6587;&#x4EF6;&#x6307;&#x5B9A;&#x4E86;&#x6BCF;&#x4E00;&#x4E2A;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x5BF9;&#x5E94;&#x7684;&#x5185;&#x90E8;&#x5B9E;&#x73B0;&#x51FD;&#x6570;&#x540D;&#xFF0C;&#x4EE5;&#x53CA;&#x5BF9;&#x5E94;&#x7684;&#x6587;&#x4EF6;&#x540D;&#x3002;&#x5728;&#x7F16;&#x8BD1; glibc &#x7684;&#x65F6;&#x5019;&#xFF0C;syscalls.list &#x6587;&#x4EF6;&#x4F1A;&#x88AB; sysdep/unix/make-syscalls.sh &#x811A;&#x672C;&#x5904;&#x7406;&#xFF0C;&#x8FD9;&#x4E2A;&#x811A;&#x672C;&#x4F1A;&#x5229;&#x7528; sysdeps/unix/syscall-template.S &#x8FD9;&#x4E2A;&#x6A21;&#x677F;&#x6587;&#x4EF6;&#xFF0C;&#x6765;&#x751F;&#x6210;&#x6BCF;&#x4E00;&#x4E2A;&#x7CFB;&#x7EDF;&#x8C03;&#x7528; wrapper &#x7684;&#x6C47;&#x7F16;&#x4EE3;&#x7801;&#xFF0C;&#x6700;&#x540E;&#x751F;&#x6210;&#x6211;&#x4EEC;&#x521A;&#x624D;&#x53CD;&#x6C47;&#x7F16;&#x7684;&#x90A3;&#x6837;&#x7684;&#x4EE3;&#x7801;[3]&#x3002; </p>
+<p>&#x73B0;&#x5728;&#x6211;&#x4EEC;&#x77E5;&#x9053; geteuid() &#x51FD;&#x6570;&#x6700;&#x540E;&#x8C03;&#x7528;&#x7684;&#x662F;&#x4E00;&#x4E2A; syscall &#x6307;&#x4EE4;&#x3002;&#x90A3;&#x4E48;&#x6211;&#x4EEC;&#x80FD;&#x4E0D;&#x80FD;&#x8DF3;&#x8FC7; glibc &#x7684; wrapper&#xFF0C;&#x76F4;&#x63A5;&#x8C03;&#x7528; linux &#x5185;&#x6838;&#x7684;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x5462;&#xFF1F;&#x5728;&#x4EE5;&#x524D;&#x7684;&#x8001;&#x7248;&#x672C;&#x5185;&#x6838;&#x4E2D;&#xFF0C;&#x786E;&#x5B9E;&#x63D0;&#x4F9B;&#x4E86; _syscall&#xFF0C;_syscall0 &#x7B49;&#x5B8F;&#xFF0C;&#x4F46;&#x662F;&#x73B0;&#x5728;&#x5DF2;&#x7ECF;&#x6CA1;&#x6709;&#x4E86;&#x3002;&#x53EA;&#x4FDD;&#x7559;&#x4E86; glibc &#x4E2D;&#x7ED9;&#x6211;&#x4EEC;&#x63D0;&#x4F9B;&#x7684; syscall &#x51FD;&#x6570;&#xFF0C;&#x5176;&#x51FD;&#x6570;&#x58F0;&#x660E;&#x5728; /usr/include/unistd.h &#x6587;&#x4EF6;&#x4E2D;&#xFF0C;&#x539F;&#x578B;&#x5982;&#x4E0B;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">extern long int syscall (long int __sysno, ...) __THROW;</span><br></pre></td></tr></table></figure>
+<p>&#x6211;&#x4EEC;&#x53EF;&#x4EE5;&#x901A;&#x8FC7;syscall&#x6765;&#x5B9E;&#x73B0;&#x548C;&#x4E4B;&#x524D;&#x4E00;&#x6837;&#x7684;&#x6548;&#x679C;&#xFF0C;&#x4EE3;&#x7801;&#x5982;&#x4E0B;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">#define _GNU_SOURCE         /* See feature_test_macros(7) */</span><br><span class="line">#include &lt;unistd.h&gt;</span><br><span class="line">#include &lt;sys/syscall.h&gt;   /* For SYS_xxx definitions */</span><br><span class="line"></span><br><span class="line">int main(void)</span><br><span class="line">{</span><br><span class="line">	printf(&quot;current uid: %dn&quot;, syscall(107));</span><br><span class="line">	return 0;</span><br><span class="line">}</span><br></pre></td></tr></table></figure>
+<p>&#x8FD9;&#x91CC;&#xFF0C;107&#x5C31;&#x662F;&#x6211;&#x4EEC;&#x521A;&#x624D;&#x5728;&#x53CD;&#x6C47;&#x7F16;&#x4EE3;&#x7801;&#x4E2D;&#x770B;&#x5230;&#x7684;0x6b&#x3002;&#x800C;&#x8FD9;&#x4E9B;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x4E5F;&#x5728;&#x5934;&#x6587;&#x4EF6;/usr/include/asm/unistd_64.h&#x4E2D;&#x627E;&#x5230;&#xFF0C;&#x5982;&#x679C;&#x6211;&#x4EEC;&#x5305;&#x542B;&#x6587;&#x4EF6;&#xFF0C;&#x6211;&#x4EEC;&#x53EF;&#x4EE5;&#x901A;&#x8FC7;&#x201D;syscall(__NR_geteuid)&#x201D;&#x6765;&#x5B9E;&#x73B0;&#x548C;&#x4E4B;&#x524D;&#x4E00;&#x6837;&#x7684;&#x6548;&#x679C;&#xFF0C;&#x4F46;&#x662F;&#x66F4;&#x76F4;&#x89C2;&#x4E00;&#x70B9;&#x3002; </p>
+<p>&#x5982;&#x679C;&#x6211;&#x4EEC;&#x60F3;&#x5B8C;&#x5168;&#x8DF3;&#x8FC7;glibc&#xFF0C;&#x6211;&#x4EEC;&#x53EF;&#x4EE5;&#x5199;&#x4E00;&#x4E2A;&#x6C47;&#x7F16;&#x4EE3;&#x7801;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">BITS 64</span><br><span class="line">section .text</span><br><span class="line">global _start</span><br><span class="line"></span><br><span class="line">_start:</span><br><span class="line">	mov rax,107</span><br><span class="line">	syscall ;invoke geteuid()</span><br><span class="line">	mov rdi,0 ;return value</span><br><span class="line">	mov rax,60 ; _exit syscall</span><br><span class="line">	syscall</span><br></pre></td></tr></table></figure>
+<p>&#x6211;&#x4EEC;&#x53EF;&#x4EE5;&#x901A;&#x8FC7;&#x5982;&#x4E0B;&#x547D;&#x4EE4;&#xFF0C;&#x6765;&#x7F16;&#x8BD1;&#x6267;&#x884C;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">nasm -f elf64 test.asm</span><br><span class="line">ld -s -o test test.o</span><br><span class="line">strace ./test</span><br></pre></td></tr></table></figure>
+<p>&#x7531;&#x4E8E;&#x5E76;&#x6CA1;&#x6709;&#x8C03;&#x7528;&#x8F93;&#x51FA;&#x51FD;&#x6570;&#xFF0C;&#x6240;&#x4EE5;&#x6211;&#x4EEC;&#x53EA;&#x80FD;&#x901A;&#x8FC7;strace&#x6765;&#x8DDF;&#x8E2A;&#x5177;&#x4F53;&#x7684;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#xFF0C;&#x8FD0;&#x884C;&#x540E;&#xFF0C;&#x8F93;&#x51FA;&#x5982;&#x4E0B;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">execve(&quot;./test&quot;, [&quot;./test&quot;], [/* 66 vars */]) = 0</span><br><span class="line">geteuid()                               = 1000</span><br><span class="line">_exit(0)                                = ?</span><br></pre></td></tr></table></figure>
+<p>&#x53EF;&#x4EE5;&#x770B;&#x5230;&#xFF0C;&#x901A;&#x8FC7; syscall &#x8C03;&#x7528;&#x4E86; geteuid &#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#xFF0C;&#x5E76;&#x8FD4;&#x56DE;&#x4E86;&#x6B63;&#x786E;&#x7684;&#x7ED3;&#x679C;&#x3002; </p>
+<p>&#x8981;&#x6CE8;&#x610F;&#x7684;&#x662F;&#xFF0C;&#x8FD9;&#x91CC;&#x7684;&#x5B9E;&#x73B0;&#x662F; 64 &#x4F4D;&#x7684;&#x7248;&#x672C;&#xFF0C;32 &#x4F4D;&#x7684; linux &#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x53F7;&#x548C; 64 &#x4F4D;&#x7684;&#x662F;&#x4E0D;&#x4E00;&#x6837;&#x7684;&#xFF0C;&#x5177;&#x4F53;&#x53EF;&#x4EE5;&#x901A;&#x8FC7; /usr/include/asm/unistd_32.h &#x6765;&#x83B7;&#x53D6;&#x5177;&#x4F53;&#x7684;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x53F7;&#x3002;&#x5E76;&#x4E14; 32 &#x4F4D;&#x4E0B;&#x9762;&#x662F;&#x7528; int 0x80 &#x8F6F;&#x4EF6;&#x4E2D;&#x65AD;&#x6765;&#x5B9E;&#x73B0;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x7684;&#x5206;&#x53D1;&#xFF0C;&#x800C; 64 &#x4F4D;&#x662F;&#x901A;&#x8FC7; syscall &#x6307;&#x4EE4;&#x6765;&#x5B9E;&#x73B0;&#x7684;&#x3002; </p>
+<h2 id="&#x4E8C;-&#x5185;&#x6838;&#x6001;"><a href="#&#x4E8C;&#x3001;&#x5185;&#x6838;&#x6001;" class="headerlink" title="&#x4E8C;&#x3001;&#x5185;&#x6838;&#x6001;"></a>&#x4E8C;&#x3001;&#x5185;&#x6838;&#x6001;</h2><p>&#x73B0;&#x5728;&#xFF0C;&#x6211;&#x4EEC;&#x5DF2;&#x7ECF;&#x77E5;&#x9053;&#x4E86;&#x7528;&#x6237;&#x6001;&#x7A0B;&#x5E8F;&#x662F;&#x5982;&#x4F55;&#x8C03;&#x7528; linux &#x5185;&#x6838;&#x63D0;&#x4F9B;&#x7684;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#xFF0C;&#x4F46;&#x662F;&#x771F;&#x771F;&#x7684;&#x5B9E;&#x73B0;&#x5374;&#x662F;&#x5728; kernel &#x4E2D;&#x3002;&#x6240;&#x4EE5;&#x73B0;&#x5728;&#x6211;&#x4EEC;&#x8981;&#x8FDB;&#x5165; kernel &#x6E90;&#x7801;&#xFF0C;&#x6765;&#x5206;&#x6790;&#x5177;&#x4F53;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x5B9E;&#x73B0;&#xFF0C;&#x6700;&#x540E;&#x6211;&#x4EEC;&#x8FD8;&#x8981;&#x5F80; kernel &#x4E2D;&#x6DFB;&#x52A0;&#x6211;&#x4EEC;&#x81EA;&#x5DF1;&#x7684;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x3002; </p>
+<p>&#x8FD9;&#x91CC;&#x8FD8;&#x662F;&#x4EE5; geteuid &#x4E3A;&#x4F8B;&#x3002; </p>
+<p>&#x4EE5;&#x524D;&#x7684; linux kernel &#x7684;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x662F;&#x5728; arch/$(arch)/kernel/syscall_table.S &#x6587;&#x4EF6;&#x5B9A;&#x4E49;&#x7684;&#xFF0C;&#x4F46;&#x662F;&#x5728; 3.2 &#x4EE5;&#x540E;&#xFF0C;&#x5C31;&#x5DF2;&#x7ECF;&#x6539;&#x53D8;&#x4E86;&#xFF0C;&#x76F8;&#x5173; patch &#x53EF;&#x4EE5;&#x5230; lkml.org &#x4E2D;&#x627E;&#x5230;[4]&#x3002;x86 &#x4E0B;&#x6700;&#x65B0;&#x7684; syscall &#x5B9A;&#x4E49;&#x5728;arch/x86/syscalls &#x4E2D;&#x3002;&#x5176;&#x4E2D;&#x7684; syscall_64.tbl &#x5C31;&#x662F; 64 &#x4F4D;&#x4E0B;&#x6240;&#x6709;&#x7684;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x8868;&#xFF0C;&#x90E8;&#x5206;&#x5982;&#x4E0B;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">106 common  setgid          sys_setgid</span><br><span class="line">107 common  geteuid         sys_geteuid</span><br><span class="line">108 common  getegid         sys_getegid</span><br><span class="line">109 common  setpgid         sys_setpgid</span><br><span class="line">110 common  getppid         sys_getppid</span><br></pre></td></tr></table></figure>
+<p>&#x6211;&#x4EEC;&#x53EF;&#x4EE5;&#x53D1;&#x73B0; geteuid &#x7684;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x53F7;&#x548C;&#x4E4B;&#x524D;&#x662F;&#x4E00;&#x81F4;&#x7684;&#x3002;&#x800C;&#x5728;&#x7F16;&#x8BD1;&#x7684;&#x65F6;&#x5019;&#xFF0C;&#x5C31;&#x4F1A;&#x901A;&#x8FC7; syscallhdr.sh &#x548C;syscalltbl.sh &#x4E24;&#x4E2A;&#x811A;&#x672C;&#x8BFB;&#x5165;&#x5BF9;&#x5E94;&#x7684;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x8868;&#xFF0C;&#x6765;&#x751F;&#x6210;unistd_64.h&#x548C;&#x5176;&#x4ED6;&#x5934;&#x6587;&#x4EF6;&#x3002;&#x800C;&#x8FD9;&#x4E9B;&#x6587;&#x4EF6;&#xFF0C;&#x5C31;&#x662F;&#x6211;&#x4EEC;&#x521A;&#x624D;&#x5728;&#x7CFB;&#x7EDF;&#x91CC;&#x770B;&#x5230;&#x7684;&#x3002; </p>
+<p>&#x901A;&#x8FC7; syscall_64.tbl &#x6587;&#x4EF6;&#xFF0C;&#x6211;&#x4EEC;&#x53D1;&#x73B0;geteuid&#x5BF9;&#x5E94;&#x7684;&#x5185;&#x6838;&#x51FD;&#x6570;&#x662F;sys_geteuid&#x3002;&#x800C;&#x8FD9;&#x4E2A;&#x51FD;&#x6570;&#x7684;&#x5B9E;&#x73B0;&#x662F;&#x5728;kernel/sys.c &#x6587;&#x4EF6;&#x4E2D;&#xFF0C;&#x6E90;&#x7801;&#x5982;&#x4E0B;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">SYSCALL_DEFINE0(geteuid)</span><br><span class="line">{</span><br><span class="line">    /* Only we change this so SMP safe */</span><br><span class="line">    return from_kuid_munged(current_user_ns(), current_euid());</span><br><span class="line">}</span><br></pre></td></tr></table></figure>
+<p>&#x5176;&#x4E2D; SYSCALL_DEFINE0 &#x662F;&#x4E00;&#x4E2A;&#x5B8F;&#xFF0C;0&#x4EE3;&#x8868;&#x8FD9;&#x4E2A;&#x51FD;&#x6570;&#x4E0D;&#x5E26;&#x53C2;&#x6570;&#x3002;&#x8FD9;&#x4E9B;&#x5B8F;&#x7684;&#x5B9A;&#x4E49;&#x5728;include/linux/syscalls.h&#x6587;&#x4EF6;&#x4E2D;&#x3002; </p>
+<p>&#x77E5;&#x9053;&#x4E86;&#x4E00;&#x4E2A;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x7684;&#x5B9E;&#x73B0;&#xFF0C;&#x6211;&#x4EEC;&#x5C31;&#x53EF;&#x4EE5;&#x5229;&#x7528;kernel&#x7ED9;&#x6211;&#x4EEC;&#x63D0;&#x4F9B;&#x7684;SYSCALL_DEFINEn&#x5B8F;&#x6765;&#x6DFB;&#x52A0;&#x6211;&#x4EEC;&#x81EA;&#x5DF1;&#x7684;&#x51FD;&#x6570;&#xFF0C;&#x5E76;&#x628A;&#x6211;&#x4EEC;&#x81EA;&#x5B9A;&#x4E49;&#x7684;&#x51FD;&#x6570;&#x6DFB;&#x52A0;&#x5230;syscall_64.tbl&#x6587;&#x4EF6;&#x4E2D;&#x5C31;&#x53EF;&#x4EE5;&#x4E86;&#x3002;&#x8FD9;&#x91CC;&#xFF0C;&#x5B9E;&#x73B0;&#x4E86;&#x4E00;&#x4E2A;&#x5F88;&#x7B80;&#x5355;&#x7684;&#x51FD;&#x6570;&#xFF0C;&#x6BCF;&#x6B21;&#x8C03;&#x7528;&#xFF0C;&#x90FD;&#x4F1A;&#x8FD4;&#x56DE;&#x4E00;&#x4E2A;&#x5B57;&#x7B26;&#x4E32;&#x3002;&#x6E90;&#x7801;&#x5982;&#x4E0B;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">SYSCALL_DEFINE1(mysyscall, char __user *, str)</span><br><span class="line">{</span><br><span class="line">    char tmp[] = &quot;strings from kernel&quot;;</span><br><span class="line">    if(copy_to_user(str, tmp, 19))</span><br><span class="line">        return -EFAULT;</span><br><span class="line"></span><br><span class="line">    return 0;</span><br><span class="line">}</span><br></pre></td></tr></table></figure>
+<p>&#x8FD9;&#x91CC;&#x51FD;&#x6570; mysyscall &#x5E26;&#x4E00;&#x4E2A;&#x53C2;&#x6570;&#xFF0C;&#x6CE8;&#x610F;&#x53C2;&#x6570;&#x7684;&#x58F0;&#x660E;&#xFF0C;&#x4E2D;&#x95F4;&#x6709;&#x4E00;&#x4E2A;&#x9017;&#x53F7;&#x3002; </p>
+<p>&#x7136;&#x540E;&#x5728;syscall_64.tbl&#x4E2D;&#x6DFB;&#x52A0;&#x81EA;&#x5DF1;&#x7684;&#x51FD;&#x6570;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">313 common    finit_module        sys_finit_module</span><br><span class="line">314 common    mysyscall           sys_mysyscall</span><br></pre></td></tr></table></figure>
+<p>&#x73B0;&#x5728;&#xFF0C;&#x6211;&#x4EEC;&#x53EF;&#x4EE5;&#x7F16;&#x8BD1;&#x6211;&#x4EEC;&#x5B9A;&#x5236;&#x7684;&#x5185;&#x6838;&#xFF0C;&#x5E76;&#x52A0;&#x8F7D;&#x8FD9;&#x4E2A;&#x5185;&#x6838;&#x3002;&#x7136;&#x540E;&#x6211;&#x4EEC;&#x53EF;&#x4EE5;&#x5728;&#x7CFB;&#x7EDF;&#x4E2D;&#x5199;&#x4E00;&#x4E2A;&#x7A0B;&#x5E8F;&#xFF0C;&#x6765;&#x8C03;&#x7528;&#x6211;&#x4EEC;&#x81EA;&#x5DF1;&#x5199;&#x7684;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x3002;&#x6E90;&#x7801;&#x5982;&#x4E0B;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">#define _GNU_SOURCE         /* See feature_test_macros(7) */</span><br><span class="line">#include &lt;unistd.h&gt;</span><br><span class="line">#include &lt;sys/syscall.h&gt;   /* For SYS_xxx definitions */ </span><br><span class="line">#include &lt;stdio.h&gt;</span><br><span class="line"></span><br><span class="line">int main(void)</span><br><span class="line">{</span><br><span class="line">	char str[19];</span><br><span class="line">	syscall(314, str);</span><br><span class="line">	printf(&quot;str: %sn&quot;, str);</span><br><span class="line">	return 0;</span><br><span class="line">}</span><br></pre></td></tr></table></figure>
+<p>&#x8FD0;&#x884C;&#x8FD9;&#x4E2A;&#x7A0B;&#x5E8F;&#xFF0C;&#x4F60;&#x5E94;&#x8BE5;&#x4F1A;&#x770B;&#x5230; &#x201C;str: strings from kernel&#x201D;&#x3002; </p>
+<h2 id="&#x4E09;-&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x52A0;&#x901F;"><a href="#&#x4E09;&#x3001;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x52A0;&#x901F;" class="headerlink" title="&#x4E09;&#x3001;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x52A0;&#x901F;"></a>&#x4E09;&#x3001;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x52A0;&#x901F;</h2><p>&#x73B0;&#x5728;&#xFF0C;&#x6211;&#x4EEC;&#x5E94;&#x8BE5;&#x5F88;&#x6E05;&#x695A;&#x4E00;&#x4E2A;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x662F;&#x600E;&#x6837;&#x4ECE;&#x7528;&#x6237;&#x7A0B;&#x5E8F;&#x4F20;&#x9012;&#x5230;&#x5185;&#x6838;&#x4E2D;&#x7684;&#x3002;&#x4F46;&#x662F;&#xFF0C;&#x6211;&#x4EEC;&#x77E5;&#x9053;&#xFF0C;&#x4ECE;&#x7528;&#x6237;&#x6001;&#x9677;&#x5165;&#x5230;&#x5185;&#x6838;&#x6001;&#x662F;&#x4E00;&#x4E2A;&#x6BD4;&#x8F83;&#x6602;&#x8D35;&#x7684;&#x5207;&#x6362;&#xFF0C;&#x5982;&#x679C;&#x4E00;&#x4E2A;&#x7CFB;&#x7EDF;&#x4E2D;&#xFF0C;&#x540C;&#x65F6;&#x6709;&#x5F88;&#x591A;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#xFF0C;&#x8FD9;&#x5C06;&#x4F1A;&#x4E25;&#x91CD;&#x62D6;&#x6162;&#x6574;&#x4E2A;&#x7CFB;&#x7EDF;&#x3002;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x7684;&#x8BBE;&#x8BA1;&#x521D;&#x8877;&#x5C31;&#x662F;&#x505A;&#x4E3A;&#x4E00;&#x4E2A;&#x7CFB;&#x7EDF;&#x95E8;&#x536B;&#xFF0C;&#x53EA;&#x8BA9;&#x7528;&#x6237;&#x6001;&#x7A0B;&#x5E8F;&#x8BBF;&#x95EE;&#x5B83;&#x5E94;&#x8BE5;&#x8BBF;&#x95EE;&#x7684;&#x8D44;&#x6E90;&#x3002;&#x4F46;&#x662F;&#xFF0C;&#x6709;&#x4E00;&#x4E9B;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x662F;&#x65E0;&#x5BB3;&#x7684;(&#x6BD4;&#x5982;&#xFF0C;&#x83B7;&#x53D6;&#x65F6;&#x95F4;)&#xFF0C;&#x5982;&#x679C;&#x80FD;&#x591F;&#x8BA9;&#x8FD9;&#x4E9B;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x5B58;&#x5728;&#x4E8E;&#x7528;&#x6237;&#x6001;&#xFF0C;&#x90A3;&#x5C31;&#x4F1A;&#x6781;&#x5927;&#x7684;&#x51CF;&#x5C11;&#x7528;&#x6237;&#x6001;&#x5230;&#x5185;&#x6838;&#x6001;&#x7684;&#x5207;&#x6362;&#xFF0C;&#x4ECE;&#x800C;&#x63D0;&#x9AD8;&#x7CFB;&#x7EDF;&#x6027;&#x80FD;&#x3002; </p>
+<p>Linux kernel &#x4E2D;&#xFF0C;&#x6709; vdso &#x548C; vsyscall &#x7684;&#x673A;&#x5236;&#xFF0C;&#x7528;&#x6765;&#x52A0;&#x901F;&#x7279;&#x5B9A;&#x7684;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x3002;&#x4E24;&#x8005;&#x7684;&#x57FA;&#x672C;&#x539F;&#x7406;&#x90FD;&#x662F;&#x628A;&#x4E00;&#x4E9B;&#x7279;&#x5B9A;&#x7684;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x653E;&#x5230;&#x4E00;&#x4E2A;&#x4E13;&#x95E8;&#x7684; page &#x4E2D;&#xFF0C;&#x7136;&#x540E;&#x628A;&#x8FD9;&#x4E2A; page &#x6620;&#x5C04;&#x5230;&#x7528;&#x6237;&#x7A0B;&#x5E8F;&#x7A7A;&#x95F4;&#xFF0C;&#x8FD9;&#x6837;&#x7528;&#x6237;&#x6001;&#x7A0B;&#x5E8F;&#x5C31;&#x53EF;&#x4EE5;&#x4E0D;&#x7528;&#x5207;&#x6362;&#x5230;&#x5185;&#x6838;&#x6001;&#x5C31;&#x53EF;&#x4EE5;&#x8C03;&#x7528;&#x8FD9;&#x4E9B;&#x51FD;&#x6570;&#x3002; </p>
+<p>&#x5982;&#x679C;&#x4F60;&#x7528;ldd&#x67E5;&#x770B;&#x4EFB;&#x610F;&#x4E00;&#x4E2A;&#x52A8;&#x6001;&#x94FE;&#x63A5;&#x7A0B;&#x5E8F;&#x7684;&#x5E93;&#x4F9D;&#x8D56;&#xFF0C;&#x4F60;&#x5C06;&#x4F1A;&#x53D1;&#x53D1;&#x73B0;&#x6BCF;&#x4E00;&#x4E2A;&#x7A0B;&#x5E8F;&#x90FD;&#x4F1A;&#x4F9D;&#x8D56;&#x4E00;&#x4E2A;linux-{vdso, gate}.so.1&#x7684;&#x5E93;&#xFF0C;&#x4F46;&#x662F;&#x8FD9;&#x4E2A;&#x5E93;&#x5374;&#x6CA1;&#x6709;&#x4EFB;&#x4F55;&#x6587;&#x4EF6;&#x4E0E;&#x4E4B;&#x60F3;&#x5173;&#x8054;&#x3002;&#x6BD4;&#x5982;&#xFF0C;&#x4E0B;&#x9762;&#x662F;&#x201D;ldd /bin/true&#x201D;&#x7684;&#x8F93;&#x51FA;&#xFF1A;</p>
+<figure class="highlight plain"><figcaption><span>=&gt;  (0x00007fff4e78e000)</span></figcaption><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">libc.so.6 =&amp;gt; /lib/x86_64-linux-gnu/libc.so.6 (0x00007f01864b2000)</span><br><span class="line">/lib64/ld-linux-x86-64.so.2 (0x00007f0186894000)</span><br></pre></td></tr></table></figure>
+<p>&#x8FD9;&#x91CC;&#x7684;linux-vdso.so.1&#x5C31;&#x662F;&#x4E4B;&#x524D;&#x6240;&#x8BF4;&#x7684;vdso&#x673A;&#x5236;&#x3002;&#x8FD9;&#x4E2A;&#x5E93;&#x662F;&#x5185;&#x6838;&#x865A;&#x62DF;&#x7684;&#xFF0C;&#x7136;&#x540E;&#x6620;&#x5C04;&#x5230;&#x6240;&#x6709;&#x7528;&#x6237;&#x6001;&#x8FDB;&#x7A0B;&#x3002;&#x4F60;&#x4E5F;&#x53EF;&#x4EE5;&#x901A;&#x8FC7;&#x67E5;&#x770B;/proc/self/maps&#x67E5;&#x770B;&#x5177;&#x4F53;&#x7684;&#x5185;&#x5B58;&#x6620;&#x5C04;&#xFF0C;&#x4E0B;&#x9762;&#x662F;&#x201D;cat /proc/self/maps&#x201D;&#x7684;&#x8F93;&#x51FA;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">00400000-0040b000 r-xp 00000000 08:03 22020229                           /bin/cat</span><br><span class="line">0060a000-0060b000 r--p 0000a000 08:03 22020229                           /bin/cat</span><br><span class="line">0060b000-0060c000 rw-p 0000b000 08:03 22020229                           /bin/cat</span><br><span class="line">02267000-02288000 rw-p 00000000 00:00 0                                  [heap]</span><br><span class="line">...</span><br><span class="line">7fff31ccc000-7fff31ced000 rw-p 00000000 00:00 0                          [stack]</span><br><span class="line">7fff31df2000-7fff31df3000 r-xp 00000000 00:00 0                          [vdso]</span><br><span class="line">ffffffffff600000-ffffffffff601000 r-xp 00000000 00:00 0                  [vsyscall]</span><br></pre></td></tr></table></figure>
+<p>&#x8FD9;&#x91CC;&#xFF0C;&#x4F60;&#x53EF;&#x4EE5;&#x770B;&#x5230;vdso&#x548C;vsyscall&#x7684;&#x5185;&#x5B58;&#x6620;&#x5C04;&#x3002;&#x9700;&#x8981;&#x6307;&#x51FA;&#x7684;&#x662F;vdso&#x548C;vsyscall&#x7684;&#x6700;&#x5927;&#x7684;&#x533A;&#x522B;&#x662F;vdso&#x6620;&#x5C04;&#x5230;&#x7528;&#x6237;&#x6001;&#x7684;&#x5185;&#x5B58;&#x5730;&#x5740;&#x662F;&#x968F;&#x673A;&#x7684;&#xFF0C;&#x800C;vsyscall&#x786E;&#x5B9E;&#x56FA;&#x5B9A;&#x7684;&#x3002;&#x4F60;&#x53EF;&#x4EE5;&#x901A;&#x8FC7;&#x8FD0;&#x884C;&#x591A;&#x6B21;&#x201D;cat /proc/self/maps&#x201D;&#x6765;&#x6BD4;&#x8F83;&#x5B83;&#x4EEC;&#x7684;&#x5730;&#x5740;&#x3002; </p>
+<p>&#x7531;&#x4E8E;vsyscall&#x7684;&#x5730;&#x5740;&#x662F;&#x56FA;&#x5B9A;&#x7684;&#xFF0C;&#x8FD9;&#x5C31;&#x7ED9;&#x5185;&#x6838;&#x7559;&#x4E0B;&#x4E00;&#x4E2A;&#x5DE8;&#x5927;&#x7684;&#x5185;&#x5B58;&#x6EA2;&#x51FA;&#x6F0F;&#x6D1E;&#x3002;&#x6240;&#x4EE5;&#x5728;&#x6700;&#x65B0;&#x7684;&#x5185;&#x6838;&#xFF0C;vsyscall&#x5DF2;&#x7ECF;&#x9010;&#x6E10;&#x5E9F;&#x9664;&#xFF0C;&#x4F46;&#x662F;&#x4F60;&#x8FD8;&#x662F;&#x80FD;&#x5728;&#x5F88;&#x591A;&#x7CFB;&#x7EDF;&#x4E2D;&#xFF0C;&#x770B;&#x5230;&#x4E24;&#x8005;&#x7684;&#x5171;&#x5B58;&#xFF0C;&#x8FD9;&#x53EA;&#x662F;&#x4E3A;&#x4E86;&#x5411;&#x540E;&#x517C;&#x5BB9;&#x7F62;&#x4E86;&#x3002;&#x5E76;&#x4E14;&#x6700;&#x65B0;&#x7684;&#x5185;&#x6838;&#x4E2D;&#xFF0C;vsyscall&#x4E2D;&#x5DF2;&#x7ECF;&#x6CA1;&#x6709;&#x4EFB;&#x4F55;&#x6307;&#x4EE4;&#x4E86;&#xFF0C;&#x53D6;&#x4EE3;&#x7684;&#x662F;&#x5185;&#x6838;&#x7684;&#x4E00;&#x4E2A;trap&#xFF0C;&#x5F53;&#x4EE5;&#x524D;&#x7684;&#x8001;&#x7A0B;&#x5E8F;&#x8C03;&#x7528;vsyscall&#x91CC;&#x7684;&#x5185;&#x5BB9;&#x65F6;&#xFF0C;&#x4F1A;&#x88AB;&#x5BFC;&#x5411;&#x5230;&#x6B63;&#x5E38;&#x7684;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x3002;&#x8FD9;&#x4E5F;&#x662F;&#x4E3A;&#x4EC0;&#x4E48;&#x5728;&#x8BFB;&#x53D6;vsyscall&#x7684;&#x65F6;&#x5019;&#xFF0C;&#x53D1;&#x73B0;&#x91CC;&#x9762;&#x662F;&#x7A7A;&#x7684;[5]&#x3002; </p>
+<p>vdso&#x7684;&#x5177;&#x4F53;&#x5B9E;&#x73B0;&#x5728;arch/x86/vdso&#x4E2D;&#xFF0C;&#x5176;&#x4E2D;&#x7684;vdso.lds.S&#x5C31;&#x5B9A;&#x4E49;&#x4E86;&#x5177;&#x4F53;&#x52A0;&#x901F;&#x7684;&#x7CFB;&#x7EDF;&#x8C03;&#x7528;&#x3002;&#x4F60;&#x751A;&#x81F3;&#x53EF;&#x4EE5;&#x5F80;vdso&#x6DFB;&#x52A0;&#x81EA;&#x5B9A;&#x4E49;&#x7684;&#x51FD;&#x6570;&#xFF0C;&#x5177;&#x4F53;&#x6DFB;&#x52A0;&#x65B9;&#x6CD5;&#x89C1;&#x8FD9;&#x91CC;[6]&#x3002; </p>
+<h2 id="reference"><a href="#REFERENCE" class="headerlink" title="REFERENCE"></a>REFERENCE</h2><ul>
+<li>System Call: <a href="http://en.wikipedia.org/wiki/System_calls" target="_blank" rel="external">http://en.wikipedia.org/wiki/System_calls</a></li>
+<li>Glibc Wrapper: <a href="https://sourceware.org/glibc/wiki/SyscallWrappers" target="_blank" rel="external">https://sourceware.org/glibc/wiki/SyscallWrappers</a></li>
+<li>Syscall: <a href="http://www.ibm.com/developerworks/library/l-system-calls/" target="_blank" rel="external">http://www.ibm.com/developerworks/library/l-system-calls/</a></li>
+<li>Kernel Syscalltbl: <a href="https://lkml.org/lkml/2011/11/17/388" target="_blank" rel="external">https://lkml.org/lkml/2011/11/17/388</a></li>
+<li>vsyscall vs vdso: <a href="http://lwn.net/Articles/446528/" target="_blank" rel="external">http://lwn.net/Articles/446528/</a></li>
+<li>Customize vdso: <a href="http://www.linuxjournal.com/content/creating-vdso-colonels-other-chicken" target="_blank" rel="external">http://www.linuxjournal.com/content/creating-vdso-colonels-other-chicken</a></li>
+</ul>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://blog.miopeco.com/2013/09/12/linux_syscall/" data-id="cinsczq5o001t1uze86x5bue1" class="article-share-link">分享到</a>
+      
+        <a href="http://blog.miopeco.com/2013/09/12/linux_syscall/#disqus_thread" class="article-comment-link">评论</a>
+      
+      
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/linux/">linux</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/syscall/">syscall</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2014/04/01/unifdef/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          批量清除条件编译代码
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2013/08/31/linux_qemu_arm/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">利用 QEMU 模拟嵌入式系统制作全过程</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+<section id="comments">
+  <div id="disqus_thread">
+    <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  </div>
+</section>
+</section>
+      
+        <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget">
+      <ul id="recent-post" class="no-thumbnail">
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category"><a class="article-category-link" href="/categories/吐槽/">吐槽</a></p>
+              <p class="item-title"><a href="/2016/05/04/baidu-clear/" class="title">净化百度，从我做起</a></p>
+              <p class="item-date"><time datetime="2016-05-04T04:19:07.000Z" itemprop="datePublished">2016-05-04</time></p>
+            </div>
+          </li>
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category"><a class="article-category-link" href="/categories/linux/">linux</a></p>
+              <p class="item-title"><a href="/2015/06/10/bash_space/" class="title">BASH 中的空格</a></p>
+              <p class="item-date"><time datetime="2015-06-09T16:00:00.000Z" itemprop="datePublished">2015-06-10</time></p>
+            </div>
+          </li>
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category"><a class="article-category-link" href="/categories/linux/">linux</a></p>
+              <p class="item-title"><a href="/2015/06/03/bash_print_animation/" class="title">终端中的动画</a></p>
+              <p class="item-date"><time datetime="2015-06-02T16:00:00.000Z" itemprop="datePublished">2015-06-03</time></p>
+            </div>
+          </li>
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category"><a class="article-category-link" href="/categories/linux/">linux</a></p>
+              <p class="item-title"><a href="/2015/06/02/bash_dirstack/" class="title">BASH 的目录切换</a></p>
+              <p class="item-date"><time datetime="2015-06-01T16:00:00.000Z" itemprop="datePublished">2015-06-02</time></p>
+            </div>
+          </li>
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category"><a class="article-category-link" href="/categories/linux/">linux</a></p>
+              <p class="item-title"><a href="/2015/06/01/bash_debug/" class="title">BASH 的调试手段</a></p>
+              <p class="item-date"><time datetime="2015-05-31T16:00:00.000Z" itemprop="datePublished">2015-06-01</time></p>
+            </div>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">分类</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/android/">android</a><span class="category-list-count">3</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/language/">language</a><span class="category-list-count">13</span><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/language/c/">c</a><span class="category-list-count">13</span></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><span class="category-list-count">11</span><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/qemu/">qemu</a><span class="category-list-count">1</span></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/security/">security</a><span class="category-list-count">2</span><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/security/android/">android</a><span class="category-list-count">1</span></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/吐槽/">吐槽</a><span class="category-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/ADBlock/" style="font-size: 10px;">ADBlock</a> <a href="/tags/Baidu/" style="font-size: 10px;">Baidu</a> <a href="/tags/Lantern/" style="font-size: 10px;">Lantern</a> <a href="/tags/adb/" style="font-size: 10px;">adb</a> <a href="/tags/android/" style="font-size: 13.33px;">android</a> <a href="/tags/arm/" style="font-size: 10px;">arm</a> <a href="/tags/assignment-word/" style="font-size: 10px;">assignment word</a> <a href="/tags/bash/" style="font-size: 13.33px;">bash</a> <a href="/tags/bashdb/" style="font-size: 10px;">bashdb</a> <a href="/tags/c/" style="font-size: 20px;">c</a> <a href="/tags/c-faq/" style="font-size: 20px;">c-faq</a> <a href="/tags/csi/" style="font-size: 10px;">csi</a> <a href="/tags/debug/" style="font-size: 10px;">debug</a> <a href="/tags/dirstack/" style="font-size: 10px;">dirstack</a> <a href="/tags/icd/" style="font-size: 10px;">icd</a> <a href="/tags/linux/" style="font-size: 16.67px;">linux</a> <a href="/tags/md5/" style="font-size: 10px;">md5</a> <a href="/tags/popd/" style="font-size: 10px;">popd</a> <a href="/tags/pushd/" style="font-size: 10px;">pushd</a> <a href="/tags/qemu/" style="font-size: 10px;">qemu</a> <a href="/tags/regmap/" style="font-size: 10px;">regmap</a> <a href="/tags/script-animation/" style="font-size: 10px;">script animation</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/sensor/" style="font-size: 10px;">sensor</a> <a href="/tags/smtp/" style="font-size: 10px;">smtp</a> <a href="/tags/space/" style="font-size: 10px;">space</a> <a href="/tags/syscall/" style="font-size: 10px;">syscall</a> <a href="/tags/touchscreen/" style="font-size: 10px;">touchscreen</a> <a href="/tags/tr/" style="font-size: 10px;">tr</a> <a href="/tags/unifdef/" style="font-size: 10px;">unifdef</a> <a href="/tags/vim/" style="font-size: 10px;">vim</a> <a href="/tags/条件编译/" style="font-size: 10px;">条件编译</a> <a href="/tags/逆向/" style="font-size: 10px;">逆向</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">归档</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/05/">五月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/06/">六月 2015</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/03/">三月 2015</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/09/">九月 2014</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/08/">八月 2014</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/07/">七月 2014</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/04/">四月 2014</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/09/">九月 2013</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/08/">八月 2013</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/07/">七月 2013</a><span class="archive-list-count">8</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/05/">五月 2013</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2012/12/">十二月 2012</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap widget-list">
+    <h3 class="widget-title">链接</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="http://tinylab.org">TINYLAB</a>
+          </li>
+        
+          <li>
+            <a href="http://oss.lzu.edu.cn">LZUOSS</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+
+  
+  <div id="toTop" class="fa fa-chevron-up"></div>
+</aside>
+      
+    </div>
+    <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      &copy; 2016 Pingbo<br>
+      Powered by <a href="http://hexo.io/" target="_blank">Hexo</a>. Theme by <a href="http://github.com/ppoffice">PPOffice</a>
+    </div>
+  </div>
+</footer>
+    
+
+<script>
+  var disqus_shortname = 'miopecolab';
+  (function(){
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+
+<script src="//ajax.useso.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+
+
+  <link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+  <script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+
+<script src="/js/script.js"></script>
+
+  </div>
+</body>
+</html>

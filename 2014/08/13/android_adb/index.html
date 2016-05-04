@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>ADB 常见错误分析 | Pingbo&#39;s Blog</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="description" content="ADBADB(Android Debug Bridge) 是 Google 为了调试 Android 设备和 Android 模拟器实例而写的调试工具。整个 ADB 分为 3 个部分，ADB Server，ADB Client 和 ADB Daemon(adbd)。ADB Server 是在主机上运行的一个进程，用来处理 ADB Client 和 ADB Daemon 之间的通信。平常所用的 ad">
+<meta property="og:type" content="article">
+<meta property="og:title" content="ADB 常见错误分析">
+<meta property="og:url" content="http://blog.miopeco.com/2014/08/13/android_adb/index.html">
+<meta property="og:site_name" content="Pingbo's Blog">
+<meta property="og:description" content="ADBADB(Android Debug Bridge) 是 Google 为了调试 Android 设备和 Android 模拟器实例而写的调试工具。整个 ADB 分为 3 个部分，ADB Server，ADB Client 和 ADB Daemon(adbd)。ADB Server 是在主机上运行的一个进程，用来处理 ADB Client 和 ADB Daemon 之间的通信。平常所用的 ad">
+<meta property="og:updated_time" content="2016-05-04T04:11:19.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="ADB 常见错误分析">
+<meta name="twitter:description" content="ADBADB(Android Debug Bridge) 是 Google 为了调试 Android 设备和 Android 模拟器实例而写的调试工具。整个 ADB 分为 3 个部分，ADB Server，ADB Client 和 ADB Daemon(adbd)。ADB Server 是在主机上运行的一个进程，用来处理 ADB Client 和 ADB Daemon 之间的通信。平常所用的 ad">
+  
+  
+    <link rel="icon" href="/favicon.png">
+  
+  <link href='//fonts.useso.com/css?family=Open+Sans:400italic,400,600' rel='stylesheet' type='text/css'>
+  <link href="//fonts.useso.com/css?family=Source+Code+Pro" rel="stylesheet" type="text/css">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/font-awesome/css/font-awesome.min.css">
+  
+<!-- Google Analytics -->
+<script type="text/javascript">
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+ga('create', 'UA-62257978-1', 'auto');
+ga('send', 'pageview');
+
+</script>
+<!-- End Google Analytics -->
+
+
+</head>
+<body>
+  <div id="container">
+    <header id="header">
+  <div id="header-main" class="header-inner">
+    <div class="outer">
+      <a href="/" id="logo"><i class="logo"></i><span class="site-title">Pingbo&#39;s Blog</span></a>
+      <nav id="main-nav">
+        
+          <a class="main-nav-link" href="/">首页</a>
+        
+          <a class="main-nav-link" href="/archives">存档</a>
+        
+          <a class="main-nav-link" href="/about">关于这里</a>
+        
+          <a class="main-nav-link" href="/aboutme">关于我</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        <div class="profile" id="profile-nav">
+          <a id="profile-anchor" href="javascript:;"><img class="avatar" src="/media/avatar.jpg"><i class="fa fa-caret-down"></i></a>
+        </div>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" results="0" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit"> </button><input type="hidden" name="sitesearch" value="http://blog.miopeco.com"></form>
+      </div>
+    </div>
+  </div>
+  <div id="main-nav-mobile" class="header-sub header-inner">
+    <table class="menu outer">
+      <tr>
+      
+        <td><a class="main-nav-link" href="/">首页</a></td>
+      
+        <td><a class="main-nav-link" href="/archives">存档</a></td>
+      
+        <td><a class="main-nav-link" href="/about">关于这里</a></td>
+      
+        <td><a class="main-nav-link" href="/aboutme">关于我</a></td>
+      
+      <td>
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" results="0" class="search-form-input" placeholder="Search"><input type="hidden" name="sitesearch" value="http://blog.miopeco.com"></form>
+      </td>
+      </tr>
+    </table>
+  </div>
+  
+</header>
+    <div class="outer">
+      <aside id="profile">
+  <div class="inner profile-inner">
+  	<div class="base-info profile-block">
+		  <img id="avatar" src="/media/avatar.jpg">
+      <h2 id="name">Pingbo</h2>
+      <h3 id="title">程序猿</h3>
+      <span id="location"><i class="fa fa-map-marker"></i>Zhuhai, China</span>
+      <a id="follow" href="http://www.zhihu.com/people/wen-ping-bo">关注我</a>
+  	</div>
+    <div class="article-info profile-block">
+      <div class="article-info-block">
+        30
+        <span>文章</span>
+      </div>
+      <div class="article-info-block">
+        33
+        <span>标签</span>
+      </div>
+    </div>
+    <div class="contact-info profile-block">
+      <table class="contact-list">
+        <tr>
+        
+          <td><a href="https://github.com/wengpingbo" title="github"><i class="fa fa-github"></i></a></td>
+        
+          <td><a href="http://weibo.com/echowpb" title="weibo"><i class="fa fa-weibo"></i></a></td>
+        
+          <td><a href="https://plus.google.com/u/0/117917427002657037112" title="google-plus"><i class="fa fa-google-plus"></i></a></td>
+        
+          <td><a href="/atom.xml" title="rss"><i class="fa fa-rss"></i></a></td>
+        
+        </tr>
+      </table>
+    </div>
+  </div>
+</aside>
+      <section id="main"><article id="post-android_adb" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      ADB 常见错误分析
+    </h1>
+  
+
+        <div class="article-meta">
+          <div class="article-date">
+  <i class="fa fa-calendar"></i>
+  <a href="/2014/08/13/android_adb/">
+    <time datetime="2014-08-12T16:00:00.000Z" itemprop="datePublished">2014-08-13</time>
+  </a>
+</div>
+          
+  <div class="article-category">
+  	<i class="fa fa-folder"></i>
+    <a class="article-category-link" href="/categories/android/">android</a>
+  </div>
+
+        </div>
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h2 id="adb"><a href="#ADB" class="headerlink" title="ADB"></a>ADB</h2><p>ADB(Android Debug Bridge) &#x662F; Google &#x4E3A;&#x4E86;&#x8C03;&#x8BD5; Android &#x8BBE;&#x5907;&#x548C; Android &#x6A21;&#x62DF;&#x5668;&#x5B9E;&#x4F8B;&#x800C;&#x5199;&#x7684;&#x8C03;&#x8BD5;&#x5DE5;&#x5177;&#x3002;&#x6574;&#x4E2A; ADB &#x5206;&#x4E3A; 3 &#x4E2A;&#x90E8;&#x5206;&#xFF0C;ADB Server&#xFF0C;ADB Client &#x548C; ADB Daemon(adbd)&#x3002;ADB Server &#x662F;&#x5728;&#x4E3B;&#x673A;&#x4E0A;&#x8FD0;&#x884C;&#x7684;&#x4E00;&#x4E2A;&#x8FDB;&#x7A0B;&#xFF0C;&#x7528;&#x6765;&#x5904;&#x7406; ADB Client &#x548C; ADB Daemon &#x4E4B;&#x95F4;&#x7684;&#x901A;&#x4FE1;&#x3002;&#x5E73;&#x5E38;&#x6240;&#x7528;&#x7684; <code>adb kill-server</code> &#x5C31;&#x662F;kill&#x8FD9;&#x4E2A;&#x8FDB;&#x7A0B;&#x3002;ADB Client &#x5C31;&#x662F;&#x6211;&#x4EEC;&#x5728;&#x7EC8;&#x7AEF;&#x91CC;&#x8FD0;&#x884C;&#x7684;&#x7A0B;&#x5E8F;&#xFF0C;&#x7528;&#x4E8E;&#x5904;&#x7406;&#x7528;&#x6237;&#x8F93;&#x5165;&#xFF0C;&#x5E76;&#x548C; ADB Server &#x901A;&#x4FE1;&#x3002;&#x901A;&#x5E38; ADB Client &#x548C; ADB Server &#x4F1A;&#x7F16;&#x8BD1;&#x5230;&#x540C;&#x4E00;&#x4E2A;&#x53EF;&#x6267;&#x884C;&#x6587;&#x4EF6; adb&#xFF0C;&#x6240;&#x4EE5;&#x5728;&#x8FD0;&#x884C; adb &#x547D;&#x4EE4;&#x65F6;&#xFF0C;&#x4F1A;&#x4E3B;&#x52A8;&#x68C0;&#x6D4B;&#x662F;&#x5426;&#x6709; ADB Server &#x8FD9;&#x4E2A;&#x8FDB;&#x7A0B;&#xFF0C;&#x5982;&#x679C;&#x6CA1;&#x6709;&#xFF0C;&#x5C31;&#x4F1A;&#x9ED8;&#x8BA4;&#x540E;&#x53F0;&#x8FD0;&#x884C; ADB Server&#x3002;ADB Daemon &#x662F;&#x4E00;&#x4E2A;&#x8FD0;&#x884C;&#x5728; Android &#x5BA2;&#x6237;&#x7AEF;&#x7684;&#x5B88;&#x62A4;&#x8FDB;&#x7A0B;&#xFF0C;&#x7528;&#x4E8E;&#x548C; ADB Server &#x8FDB;&#x884C;&#x901A;&#x4FE1;&#xFF0C;&#x5E76;&#x7ED9;&#x4E3B;&#x673A;&#x63D0;&#x4F9B;&#x4E00;&#x7CFB;&#x5217;&#x7684;&#x670D;&#x52A1;&#x3002;</p>
+<p>&#x5728;&#x6211;&#x4EEC;&#x5E73;&#x5E38;&#x7684;&#x5F00;&#x53D1;&#x4E2D;&#xFF0C;&#x53EF;&#x80FD;&#x4F1A;&#x78B0;&#x5230;&#x4E00;&#x4E9B; Android &#x8BBE;&#x5907;&#x65E0;&#x6CD5;&#x901A;&#x8FC7; adb &#x53BB;&#x8FDE;&#x63A5;&#x3002;&#x8FD9;&#x91CC;&#x5206;&#x6790;&#x4E24;&#x79CD;&#x5E38;&#x89C1;&#x7684;&#x8FDE;&#x63A5;&#x9519;&#x8BEF;&#x3002;</p>
+<a id="more"></a>
+<h2 id="&#x8BBE;&#x5907;&#x627E;&#x4E0D;&#x5230;device-not-found"><a href="#&#x8BBE;&#x5907;&#x627E;&#x4E0D;&#x5230;-device-not-found" class="headerlink" title="&#x8BBE;&#x5907;&#x627E;&#x4E0D;&#x5230;(device not found)"></a>&#x8BBE;&#x5907;&#x627E;&#x4E0D;&#x5230;(device not found)</h2><p>&#x8FD9;&#x79CD;&#x60C5;&#x51B5;&#xFF0C;&#x4E00;&#x822C;&#x73B0;&#x8C61;&#x662F;&#x6211;&#x4EEC;&#x5DF2;&#x7ECF;&#x7528;USB&#x628A;Android&#x8BBE;&#x5907;&#x548C;&#x4E3B;&#x673A;&#x8FDE;&#x63A5;&#x5728;&#x4E00;&#x8D77;&#xFF0C;&#x4F46;<code>adb devices</code>&#x5374;&#x65E0;&#x6CD5;&#x6B63;&#x5E38;&#x8BC6;&#x522B;&#x8BE5;&#x8BBE;&#x5907;&#x3002;&#x4F46;&#x662F;&#x901A;&#x8FC7;<code>lsusb</code>&#x547D;&#x4EE4;&#x5374;&#x53C8;&#x80FD;&#x591F;&#x770B;&#x5230;&#x8BE5;USB&#x8BBE;&#x5907;&#x3002;</p>
+<p>&#x539F;&#x56E0;&#x4E00;&#x822C;&#x662F; ADB &#x4E0D;&#x8BC6;&#x522B;&#x8BE5;&#x8BBE;&#x5907;&#x7684; VenderID&#x3002;&#x6211;&#x4EEC;&#x53EF;&#x4EE5;&#x65B0;&#x5EFA;&#x4E00;&#x4E2A; <code>$HOME/.android/adb_usb.ini</code> &#x6587;&#x4EF6;&#xFF0C;&#x628A;&#x6211;&#x4EEC; USB &#x8BBE;&#x5907;&#x4E0A;&#x7684; VenderID &#x6DFB;&#x52A0;&#x5230;&#x8BE5;&#x6587;&#x4EF6;&#x91CC;&#xFF0C;&#x4E00;&#x4E2A;&#x4E00;&#x884C;&#xFF0C;&#x7136;&#x540E;&#x8FD0;&#x884C; <code>adb kill-server</code> &#x628A; ADB Server &#x5E72;&#x6389;&#x3002;&#x4E4B;&#x540E;&#x6211;&#x4EEC;&#x5C31;&#x80FD;&#x591F;&#x6B63;&#x5E38;&#x4F7F;&#x7528; ADB &#x8FDE;&#x63A5;&#x5230;&#x8BE5; Android &#x8BBE;&#x5907;&#x3002;</p>
+<p>&#x5173;&#x4E8E;&#x8FD9;&#x80CC;&#x540E;&#x7684;&#x5177;&#x4F53;&#x7EC6;&#x8282;&#xFF0C;&#x6211;&#x4EEC;&#x53EF;&#x4EE5;&#x4ECE; ADB &#x5B9E;&#x73B0;&#x6E90;&#x7801;&#x4E2D;&#x627E;&#x5230;&#x3002;&#x5982;&#x679C;&#x4F60;&#x73B0;&#x5728;&#x624B;&#x4E0A;&#x6709; Android &#x6E90;&#x7801;&#xFF0C;&#x53EF;&#x4EE5;&#x5728; system/core/adb &#x76EE;&#x5F55;&#x4E0B;&#x627E;&#x5230; ADB &#x7684;&#x5B9E;&#x73B0;&#x4EE3;&#x7801;&#x3002;&#x5728; ADB &#x68C0;&#x6D4B;&#x5230;&#x4E00;&#x4E2A; USB &#x8BBE;&#x5907;&#x65F6;&#xFF0C;&#x4F1A;&#x8C03;&#x7528; transport_usb.c:is_adb_interface &#x51FD;&#x6570;&#x3002;&#x901A;&#x8FC7;&#x6BD4;&#x5BF9;&#x6BD4;&#x5BF9;&#x8BE5;&#x8BBE;&#x5907;&#x7684; USB &#x534F;&#x8BAE;&#x7C7B;&#x578B;&#xFF0C;VenderID &#x7B49;&#x5B57;&#x6BB5;&#xFF0C;&#x6765;&#x68C0;&#x6D4B;&#x8BE5; USB &#x8BBE;&#x5907;&#x662F;&#x5426;&#x652F;&#x6301; ADB &#x8FDE;&#x63A5;&#x3002;&#x800C;&#x6240;&#x7528;&#x7684; VenderID &#x90FD;&#x662F;&#x5728; usb_vendors.c:usb_vendors_init &#x51FD;&#x6570;&#x91CC;&#x751F;&#x6210;&#x7684;&#x3002;usb_venders_init &#x51FD;&#x6570;&#x9996;&#x5148;&#x4F1A;&#x8BFB;&#x53D6;&#x5185;&#x7F6E;&#x7684; VenderID&#xFF0C;&#x7136;&#x540E;&#x5224;&#x65AD;&#x662F;&#x5426;&#x5728;&#x6307;&#x5B9A;&#x7684;&#x76EE;&#x5F55;&#x5B58;&#x5728;&#x4E00;&#x4E2A; adb_usb.ini &#x6587;&#x4EF6;&#xFF0C;&#x5982;&#x679C;&#x5B58;&#x5728;&#xFF0C;&#x5C31;&#x628A;&#x8BE5;&#x6587;&#x4EF6;&#x91CC;&#x7684; VenderID &#x4E5F;&#x52A0;&#x8FDB;&#x6765;&#x3002;&#x6240;&#x4EE5;&#x5982;&#x679C;&#x4F60;&#x7684; Android &#x8BBE;&#x5907;&#x4E0D;&#x5728;&#x5185;&#x7F6E;&#x7684; VenderID &#x4E4B;&#x5217;&#xFF0C;&#x5C31;&#x53EA;&#x80FD;&#x5728; adb_usb.ini &#x6587;&#x4EF6;&#x91CC;&#x624B;&#x52A8;&#x6DFB;&#x52A0;&#x4E86;&#x3002;</p>
+<h2 id="&#x6CA1;&#x6743;&#x9650;permission-denied&#x6743;&#x9650;&#x4E0D;&#x8DB3;insufficient-permission"><a href="#&#x6CA1;&#x6743;&#x9650;-permission-denied-&#x6743;&#x9650;&#x4E0D;&#x8DB3;-insufficient-permission" class="headerlink" title="&#x6CA1;&#x6743;&#x9650;(permission denied)/&#x6743;&#x9650;&#x4E0D;&#x8DB3;(insufficient permission)"></a>&#x6CA1;&#x6743;&#x9650;(permission denied)/&#x6743;&#x9650;&#x4E0D;&#x8DB3;(insufficient permission)</h2><p>&#x8FD9;&#x5E94;&#x8BE5;&#x662F;&#x6BD4;&#x8F83;&#x5E38;&#x89C1;&#x7684;&#x95EE;&#x9898;&#x3002;&#x8FD9;&#x79CD;&#x95EE;&#x9898;&#xFF0C;&#x4E00;&#x822C; ADB &#x53EF;&#x4EE5;&#x53D1;&#x73B0;&#x8BE5;&#x8BBE;&#x5907;&#xFF0C;&#x4F46;&#x7531;&#x4E8E; LINUX &#x7CFB;&#x7EDF;&#x6743;&#x9650;&#x95EE;&#x9898;&#xFF0C;&#x65E0;&#x6CD5;&#x5728;&#x5F53;&#x524D;&#x7528;&#x6237;&#x4E0B;&#x6253;&#x5F00;&#x8BE5;&#x8BBE;&#x5907;&#x3002;&#x4E8E;&#x662F;&#x5C31;&#x6709;&#x4E86;&#x6CA1;&#x6743;&#x9650;&#x7684;&#x4E00;&#x8BF4;&#x3002;&#x8FD9;&#x79CD;&#x60C5;&#x51B5;&#x5176;&#x5B9E;&#x8DDF; ADB &#x5173;&#x7CFB;&#x4E0D;&#x5927;&#xFF0C;&#x89E3;&#x51B3;&#x601D;&#x8DEF;&#x4E00;&#x822C;&#x662F;&#x7ED9;&#x8BBE;&#x5907;&#x8282;&#x70B9;&#x6587;&#x4EF6;&#x5206;&#x914D;&#x76F8;&#x5E94;&#x7684;&#x6743;&#x9650;&#xFF0C;&#x6211;&#x4EEC;&#x53EF;&#x4EE5;&#x901A;&#x8FC7;&#x8BBE;&#x7F6E; udev &#x7684;&#x89C4;&#x5219;(/etc/udev/rules.d/)&#xFF0C;&#x8BA9; udev &#x5728;&#x53D1;&#x73B0;&#x8BE5;&#x8BBE;&#x5907;&#x65F6;&#xFF0C;&#x81EA;&#x52A8;&#x5206;&#x914D;&#x6211;&#x4EEC;&#x8BBE;&#x7F6E;&#x7684;&#x6743;&#x9650;&#x3002;udev &#x7684;&#x89C4;&#x5219;&#x8BED;&#x6CD5;&#x5982;&#x4E0B;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">SUBSYSTEM==&quot;usb&quot;, ATTR{idVendor}==&quot;18d1&quot;, ATTR{idProduct}==&quot;4e12&quot;, MODE=&quot;0600&quot;, OWNER=&quot;username&quot;</span><br></pre></td></tr></table></figure>
+<p>&#x6211;&#x4EEC;&#x4E5F;&#x53EF;&#x4EE5;&#x7B80;&#x5355;&#x7C97;&#x66B4;&#x7684;&#x7528;chmod&#x547D;&#x4EE4;&#x4E34;&#x65F6;&#x6539;&#x53D8; /dev/bus/usb/ &#x4E0B;&#x9762;&#x7684;&#x8BBE;&#x5907;&#x8282;&#x70B9;&#x6743;&#x9650;&#x3002;</p>
+<p>&#x6709;&#x7684;&#x65F6;&#x5019;&#xFF0C;&#x4F60;&#x4F1A;&#x53D1;&#x73B0;&#x6309;&#x7167;&#x4E0A;&#x9762;&#x505A;&#x4E86;&#xFF0C;&#x8FD8;&#x662F;&#x4E0D;&#x884C;&#x3002;&#x8BF7;&#x628A; udev &#x670D;&#x52A1;&#x91CD;&#x542F;&#xFF0C;&#x628A; ADB Server &#x8FDB;&#x7A0B;&#x91CD;&#x542F;&#xFF0C;&#x628A; USB &#x91CD;&#x63D2;&#x4E00;&#x904D;&#xFF0C;&#x4E00;&#x822C;&#x5C31;&#x80FD;&#x89E3;&#x51B3;&#x3002;&#x5982;&#x679C;&#x8FD8;&#x4E0D;&#x80FD;&#x89E3;&#x51B3;&#xFF0C;&#x6211;&#x89C9;&#x5F97;&#x4F60;&#x8BE5;&#x68C0;&#x67E5;&#x4F60;&#x7684; USB &#x7EBF;&#x4E86;&#x3002;</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://blog.miopeco.com/2014/08/13/android_adb/" data-id="cinsczq3a00011uzeclwirjw7" class="article-share-link">分享到</a>
+      
+        <a href="http://blog.miopeco.com/2014/08/13/android_adb/#disqus_thread" class="article-comment-link">评论</a>
+      
+      
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/adb/">adb</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/android/">android</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2014/09/21/linux_tr/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          Linux 命令 tr 介绍
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2014/08/12/android_cap_touch/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">剖析触摸屏上的电容按键</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+<section id="comments">
+  <div id="disqus_thread">
+    <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  </div>
+</section>
+</section>
+      
+        <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget">
+      <ul id="recent-post" class="no-thumbnail">
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category"><a class="article-category-link" href="/categories/吐槽/">吐槽</a></p>
+              <p class="item-title"><a href="/2016/05/04/baidu-clear/" class="title">净化百度，从我做起</a></p>
+              <p class="item-date"><time datetime="2016-05-04T04:19:07.000Z" itemprop="datePublished">2016-05-04</time></p>
+            </div>
+          </li>
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category"><a class="article-category-link" href="/categories/linux/">linux</a></p>
+              <p class="item-title"><a href="/2015/06/10/bash_space/" class="title">BASH 中的空格</a></p>
+              <p class="item-date"><time datetime="2015-06-09T16:00:00.000Z" itemprop="datePublished">2015-06-10</time></p>
+            </div>
+          </li>
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category"><a class="article-category-link" href="/categories/linux/">linux</a></p>
+              <p class="item-title"><a href="/2015/06/03/bash_print_animation/" class="title">终端中的动画</a></p>
+              <p class="item-date"><time datetime="2015-06-02T16:00:00.000Z" itemprop="datePublished">2015-06-03</time></p>
+            </div>
+          </li>
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category"><a class="article-category-link" href="/categories/linux/">linux</a></p>
+              <p class="item-title"><a href="/2015/06/02/bash_dirstack/" class="title">BASH 的目录切换</a></p>
+              <p class="item-date"><time datetime="2015-06-01T16:00:00.000Z" itemprop="datePublished">2015-06-02</time></p>
+            </div>
+          </li>
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category"><a class="article-category-link" href="/categories/linux/">linux</a></p>
+              <p class="item-title"><a href="/2015/06/01/bash_debug/" class="title">BASH 的调试手段</a></p>
+              <p class="item-date"><time datetime="2015-05-31T16:00:00.000Z" itemprop="datePublished">2015-06-01</time></p>
+            </div>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">分类</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/android/">android</a><span class="category-list-count">3</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/language/">language</a><span class="category-list-count">13</span><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/language/c/">c</a><span class="category-list-count">13</span></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><span class="category-list-count">11</span><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/qemu/">qemu</a><span class="category-list-count">1</span></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/security/">security</a><span class="category-list-count">2</span><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/security/android/">android</a><span class="category-list-count">1</span></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/吐槽/">吐槽</a><span class="category-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/ADBlock/" style="font-size: 10px;">ADBlock</a> <a href="/tags/Baidu/" style="font-size: 10px;">Baidu</a> <a href="/tags/Lantern/" style="font-size: 10px;">Lantern</a> <a href="/tags/adb/" style="font-size: 10px;">adb</a> <a href="/tags/android/" style="font-size: 13.33px;">android</a> <a href="/tags/arm/" style="font-size: 10px;">arm</a> <a href="/tags/assignment-word/" style="font-size: 10px;">assignment word</a> <a href="/tags/bash/" style="font-size: 13.33px;">bash</a> <a href="/tags/bashdb/" style="font-size: 10px;">bashdb</a> <a href="/tags/c/" style="font-size: 20px;">c</a> <a href="/tags/c-faq/" style="font-size: 20px;">c-faq</a> <a href="/tags/csi/" style="font-size: 10px;">csi</a> <a href="/tags/debug/" style="font-size: 10px;">debug</a> <a href="/tags/dirstack/" style="font-size: 10px;">dirstack</a> <a href="/tags/icd/" style="font-size: 10px;">icd</a> <a href="/tags/linux/" style="font-size: 16.67px;">linux</a> <a href="/tags/md5/" style="font-size: 10px;">md5</a> <a href="/tags/popd/" style="font-size: 10px;">popd</a> <a href="/tags/pushd/" style="font-size: 10px;">pushd</a> <a href="/tags/qemu/" style="font-size: 10px;">qemu</a> <a href="/tags/regmap/" style="font-size: 10px;">regmap</a> <a href="/tags/script-animation/" style="font-size: 10px;">script animation</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/sensor/" style="font-size: 10px;">sensor</a> <a href="/tags/smtp/" style="font-size: 10px;">smtp</a> <a href="/tags/space/" style="font-size: 10px;">space</a> <a href="/tags/syscall/" style="font-size: 10px;">syscall</a> <a href="/tags/touchscreen/" style="font-size: 10px;">touchscreen</a> <a href="/tags/tr/" style="font-size: 10px;">tr</a> <a href="/tags/unifdef/" style="font-size: 10px;">unifdef</a> <a href="/tags/vim/" style="font-size: 10px;">vim</a> <a href="/tags/条件编译/" style="font-size: 10px;">条件编译</a> <a href="/tags/逆向/" style="font-size: 10px;">逆向</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">归档</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/05/">五月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/06/">六月 2015</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/03/">三月 2015</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/09/">九月 2014</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/08/">八月 2014</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/07/">七月 2014</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/04/">四月 2014</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/09/">九月 2013</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/08/">八月 2013</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/07/">七月 2013</a><span class="archive-list-count">8</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/05/">五月 2013</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2012/12/">十二月 2012</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap widget-list">
+    <h3 class="widget-title">链接</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="http://tinylab.org">TINYLAB</a>
+          </li>
+        
+          <li>
+            <a href="http://oss.lzu.edu.cn">LZUOSS</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+
+  
+  <div id="toTop" class="fa fa-chevron-up"></div>
+</aside>
+      
+    </div>
+    <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      &copy; 2016 Pingbo<br>
+      Powered by <a href="http://hexo.io/" target="_blank">Hexo</a>. Theme by <a href="http://github.com/ppoffice">PPOffice</a>
+    </div>
+  </div>
+</footer>
+    
+
+<script>
+  var disqus_shortname = 'miopecolab';
+  (function(){
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+
+<script src="//ajax.useso.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+
+
+  <link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+  <script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+
+<script src="/js/script.js"></script>
+
+  </div>
+</body>
+</html>

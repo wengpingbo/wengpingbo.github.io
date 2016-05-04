@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>剖析触摸屏上的电容按键 | Pingbo&#39;s Blog</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="description" content="硬件设计当前，移动终端上的按键大部分都是电容按键。电容按键的基本原理跟电容触摸屏是一样的，都是感知被触摸时，电极之间电容值的变化，来判断当前是否有触摸动作。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="剖析触摸屏上的电容按键">
+<meta property="og:url" content="http://blog.miopeco.com/2014/08/12/android_cap_touch/index.html">
+<meta property="og:site_name" content="Pingbo's Blog">
+<meta property="og:description" content="硬件设计当前，移动终端上的按键大部分都是电容按键。电容按键的基本原理跟电容触摸屏是一样的，都是感知被触摸时，电极之间电容值的变化，来判断当前是否有触摸动作。">
+<meta property="og:image" content="http://blog.miopeco.com/media/images/p-cap-button.jpg">
+<meta property="og:updated_time" content="2016-05-04T04:11:19.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="剖析触摸屏上的电容按键">
+<meta name="twitter:description" content="硬件设计当前，移动终端上的按键大部分都是电容按键。电容按键的基本原理跟电容触摸屏是一样的，都是感知被触摸时，电极之间电容值的变化，来判断当前是否有触摸动作。">
+<meta name="twitter:image" content="http://blog.miopeco.com/media/images/p-cap-button.jpg">
+  
+  
+    <link rel="icon" href="/favicon.png">
+  
+  <link href='//fonts.useso.com/css?family=Open+Sans:400italic,400,600' rel='stylesheet' type='text/css'>
+  <link href="//fonts.useso.com/css?family=Source+Code+Pro" rel="stylesheet" type="text/css">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/font-awesome/css/font-awesome.min.css">
+  
+<!-- Google Analytics -->
+<script type="text/javascript">
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+ga('create', 'UA-62257978-1', 'auto');
+ga('send', 'pageview');
+
+</script>
+<!-- End Google Analytics -->
+
+
+</head>
+<body>
+  <div id="container">
+    <header id="header">
+  <div id="header-main" class="header-inner">
+    <div class="outer">
+      <a href="/" id="logo"><i class="logo"></i><span class="site-title">Pingbo&#39;s Blog</span></a>
+      <nav id="main-nav">
+        
+          <a class="main-nav-link" href="/">首页</a>
+        
+          <a class="main-nav-link" href="/archives">存档</a>
+        
+          <a class="main-nav-link" href="/about">关于这里</a>
+        
+          <a class="main-nav-link" href="/aboutme">关于我</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        <div class="profile" id="profile-nav">
+          <a id="profile-anchor" href="javascript:;"><img class="avatar" src="/media/avatar.jpg"><i class="fa fa-caret-down"></i></a>
+        </div>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" results="0" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit"> </button><input type="hidden" name="sitesearch" value="http://blog.miopeco.com"></form>
+      </div>
+    </div>
+  </div>
+  <div id="main-nav-mobile" class="header-sub header-inner">
+    <table class="menu outer">
+      <tr>
+      
+        <td><a class="main-nav-link" href="/">首页</a></td>
+      
+        <td><a class="main-nav-link" href="/archives">存档</a></td>
+      
+        <td><a class="main-nav-link" href="/about">关于这里</a></td>
+      
+        <td><a class="main-nav-link" href="/aboutme">关于我</a></td>
+      
+      <td>
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" results="0" class="search-form-input" placeholder="Search"><input type="hidden" name="sitesearch" value="http://blog.miopeco.com"></form>
+      </td>
+      </tr>
+    </table>
+  </div>
+  
+</header>
+    <div class="outer">
+      <aside id="profile">
+  <div class="inner profile-inner">
+  	<div class="base-info profile-block">
+		  <img id="avatar" src="/media/avatar.jpg">
+      <h2 id="name">Pingbo</h2>
+      <h3 id="title">程序猿</h3>
+      <span id="location"><i class="fa fa-map-marker"></i>Zhuhai, China</span>
+      <a id="follow" href="http://www.zhihu.com/people/wen-ping-bo">关注我</a>
+  	</div>
+    <div class="article-info profile-block">
+      <div class="article-info-block">
+        30
+        <span>文章</span>
+      </div>
+      <div class="article-info-block">
+        33
+        <span>标签</span>
+      </div>
+    </div>
+    <div class="contact-info profile-block">
+      <table class="contact-list">
+        <tr>
+        
+          <td><a href="https://github.com/wengpingbo" title="github"><i class="fa fa-github"></i></a></td>
+        
+          <td><a href="http://weibo.com/echowpb" title="weibo"><i class="fa fa-weibo"></i></a></td>
+        
+          <td><a href="https://plus.google.com/u/0/117917427002657037112" title="google-plus"><i class="fa fa-google-plus"></i></a></td>
+        
+          <td><a href="/atom.xml" title="rss"><i class="fa fa-rss"></i></a></td>
+        
+        </tr>
+      </table>
+    </div>
+  </div>
+</aside>
+      <section id="main"><article id="post-android_cap_touch" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      剖析触摸屏上的电容按键
+    </h1>
+  
+
+        <div class="article-meta">
+          <div class="article-date">
+  <i class="fa fa-calendar"></i>
+  <a href="/2014/08/12/android_cap_touch/">
+    <time datetime="2014-08-11T16:00:00.000Z" itemprop="datePublished">2014-08-12</time>
+  </a>
+</div>
+          
+  <div class="article-category">
+  	<i class="fa fa-folder"></i>
+    <a class="article-category-link" href="/categories/android/">android</a>
+  </div>
+
+        </div>
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h2 id="&#x786C;&#x4EF6;&#x8BBE;&#x8BA1;"><a href="#&#x786C;&#x4EF6;&#x8BBE;&#x8BA1;" class="headerlink" title="&#x786C;&#x4EF6;&#x8BBE;&#x8BA1;"></a>&#x786C;&#x4EF6;&#x8BBE;&#x8BA1;</h2><p>&#x5F53;&#x524D;&#xFF0C;&#x79FB;&#x52A8;&#x7EC8;&#x7AEF;&#x4E0A;&#x7684;&#x6309;&#x952E;&#x5927;&#x90E8;&#x5206;&#x90FD;&#x662F;&#x7535;&#x5BB9;&#x6309;&#x952E;&#x3002;&#x7535;&#x5BB9;&#x6309;&#x952E;&#x7684;&#x57FA;&#x672C;&#x539F;&#x7406;&#x8DDF;&#x7535;&#x5BB9;&#x89E6;&#x6478;&#x5C4F;&#x662F;&#x4E00;&#x6837;&#x7684;&#xFF0C;&#x90FD;&#x662F;&#x611F;&#x77E5;&#x88AB;&#x89E6;&#x6478;&#x65F6;&#xFF0C;&#x7535;&#x6781;&#x4E4B;&#x95F4;&#x7535;&#x5BB9;&#x503C;&#x7684;&#x53D8;&#x5316;&#xFF0C;&#x6765;&#x5224;&#x65AD;&#x5F53;&#x524D;&#x662F;&#x5426;&#x6709;&#x89E6;&#x6478;&#x52A8;&#x4F5C;&#x3002;</p>
+<p><img src="/media/images/p-cap-button.jpg" alt="c-cap button"></p>
+<a id="more"></a>
+<p>&#x629B;&#x5F00;&#x89E6;&#x6478;&#x5C4F;&#xFF0C;&#x5E02;&#x9762;&#x4E0A;&#x5927;&#x90E8;&#x5206;&#x72EC;&#x7ACB;&#x7535;&#x5BB9;&#x6309;&#x952E;&#x7684;&#x8BBE;&#x8BA1;&#xFF0C;&#x90FD;&#x662F;RC&#x4E32;&#x8054;&#x7535;&#x8DEF;(&#x5982;&#x56FE;1)&#xFF0C;VCC&#x4E00;&#x7AEF;&#x4E0D;&#x65AD;&#x53D1;&#x51FA;&#x626B;&#x63CF;&#x8109;&#x51B2;&#xFF0C;&#x4F7F;&#x7535;&#x8DEF;&#x4E2D;&#x7535;&#x5BB9;C1&#x91CD;&#x590D;&#x5145;&#x653E;&#x7535;&#xFF0C;&#x4ECE;&#x800C;&#x5728;A&#x70B9;&#x5F15;&#x8D77;&#x7535;&#x538B;&#x53D8;&#x5316;&#x3002;&#x7531;&#x4E8E;&#x6709;&#x89E6;&#x6478;&#x65F6;&#xFF0C;&#x4F1A;&#x5F15;&#x8D77;&#x7535;&#x5BB9;&#x503C;&#x589E;&#x52A0;&#xFF0C;&#x4ECE;&#x800C;&#x5F15;&#x8D77;&#x5145;&#x653E;&#x7535;&#x5468;&#x671F;&#x53D8;&#x957F;&#x3002;&#x82E5;&#x628A;&#x6709;&#x89E6;&#x6478;&#x65F6;&#xFF0C;&#x7535;&#x5BB9;C1&#x5145;&#x653E;&#x7535;&#x5468;&#x671F;&#x4E3A;T1&#xFF0C;&#x6CA1;&#x6709;&#x89E6;&#x6478;&#x65F6;&#xFF0C;&#x5468;&#x671F;&#x4E3A;T0&#x3002;&#x5219;<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">T1 &gt; T0</span><br></pre></td></tr></table></figure></p>
+<p>&#x4ECE;&#x800C;&#x80FD;&#x591F;&#x5224;&#x65AD;&#x51FA;&#xFF0C;&#x5F53;&#x524D;&#x662F;&#x5426;&#x6709;&#x89E6;&#x6478;&#x52A8;&#x4F5C;&#x3002;&#x8FD9;&#x79CD;&#x8BBE;&#x8BA1;&#x5728;&#x5F53;&#x524D;&#x666E;&#x901A;&#x5BB6;&#x7535;&#x63A7;&#x5236;&#x9762;&#x677F;&#x4E0A;&#x5F88;&#x5E38;&#x89C1;&#xFF0C;&#x8010;&#x7528;&#xFF0C;&#x4E0D;&#x6613;&#x635F;&#x574F;&#xFF0C;&#x8BBE;&#x8BA1;&#x7B80;&#x5355;&#x3002;</p>
+<p>&#x56DE;&#x5230;&#x89E6;&#x6478;&#x5C4F;&#x8FD9;&#x4E2A;&#x5927;&#x73AF;&#x5883;&#x3002;&#x7531;&#x4E8E;&#x57FA;&#x672C;&#x539F;&#x7406;&#x7684;&#x76F8;&#x4F3C;&#x6027;&#xFF0C;&#x73B0;&#x6709;&#x7684;&#x6309;&#x952E;&#x8BBE;&#x8BA1;&#x90FD;&#x6CA1;&#x6709;&#x7528;&#x72EC;&#x7ACB;&#x7684;&#x626B;&#x63CF;&#x7535;&#x8DEF;&#xFF0C;&#x800C;&#x662F;&#x4ECE;&#x89E6;&#x6478;&#x5C4F;&#x63A7;&#x5236;&#x5668;&#x91CC;&#xFF0C;&#x62C9;&#x51FA;&#x4E00;&#x6761;&#x9A71;&#x52A8;&#x901A;&#x9053;&#x7528;&#x4F5C;&#x6309;&#x952E;&#x516C;&#x5171;&#x7AEF;(VCC&#x811A;)&#xFF0C;&#x5E76;&#x628A;&#x6309;&#x952E;&#x7684;&#x53E6;&#x4E00;&#x7AEF;(A&#x811A;)&#x8FDE;&#x63A5;&#x5230;&#x89E6;&#x6478;&#x5C4F;&#x7684;&#x611F;&#x5E94;&#x901A;&#x9053;&#x4E0A;&#x3002;&#x4ECE;&#x800C;&#x5B9E;&#x73B0;&#x5728;&#x89E6;&#x6478;&#x5C4F;&#x91CC;&#x6269;&#x5C55;&#x51FA;&#x7535;&#x5BB9;&#x6309;&#x952E;&#xFF0C;&#x5E76;&#x7531;&#x89E6;&#x6478;&#x5C4F;&#x63A7;&#x5236;IC&#x6765;&#x68C0;&#x6D4B;&#x6309;&#x952E;&#x662F;&#x5426;&#x88AB;&#x89E6;&#x6478;&#x3002;</p>
+<p>&#x5728;&#x89E6;&#x6478;&#x5C4F;&#x91CC;&#xFF0C;&#x8FD8;&#x6709;&#x4E00;&#x79CD;&#x6269;&#x5C55;&#x6309;&#x952E;&#x7684;&#x65B9;&#x6CD5;&#xFF0C;&#x90A3;&#x5C31;&#x662F;&#x5B8C;&#x5168;&#x6CA1;&#x6709;&#x6309;&#x952E;&#x3002;&#x76F4;&#x63A5;&#x628A;&#x89E6;&#x6478;&#x5C4F;&#x5E55;&#x7684;&#x4E00;&#x90E8;&#x5206;(&#x4E00;&#x822C;&#x662F;&#x5E95;&#x90E8;&#xFF0C;30-40&#x9AD8;&#x5EA6;)&#x7528;&#x4F5C;&#x6309;&#x952E;&#x533A;&#x57DF;&#xFF0C;&#x5E76;&#x5728;&#x89E6;&#x6478;&#x5C4F;&#x63A7;&#x5236;IC&#x7684;&#x56FA;&#x4EF6;&#x91CC;&#x5B9A;&#x4E49;&#x76F8;&#x5E94;&#x7684;&#x6309;&#x952E;&#x533A;&#x57DF;&#x3002;&#x5F53;&#x89E6;&#x6478;&#x70B9;&#x843D;&#x5165;&#x8FD9;&#x4E2A;&#x533A;&#x57DF;&#xFF0C;&#x63A7;&#x5236;IC&#x5C31;&#x628A;&#x8FD9;&#x6B21;&#x89E6;&#x6478;&#x5F53;&#x505A;&#x6309;&#x952E;&#x52A8;&#x4F5C;&#x3002;&#x6211;&#x4EEC;&#x53EF;&#x4EE5;&#x628A;&#x8FD9;&#x79CD;&#x65B9;&#x5F0F;&#x53EB;&#x505A;&#x865A;&#x62DF;&#x7535;&#x5BB9;&#x6309;&#x952E;&#xFF0C;&#x4E0A;&#x9762;&#x4ECB;&#x7ECD;&#x7684;&#x65B9;&#x6CD5;&#x53EB;&#x505A;&#x72EC;&#x7ACB;&#x7535;&#x5BB9;&#x6309;&#x952E;&#x3002;&#x865A;&#x62DF;&#x7535;&#x5BB9;&#x6309;&#x952E;&#x7684;&#x597D;&#x5904;&#x5C31;&#x662F;&#xFF0C;&#x4E0D;&#x9700;&#x8981;&#x5728;&#x89E6;&#x6478;&#x5C4F;&#x91CC;&#x690D;&#x5165;&#x989D;&#x5916;&#x7684;&#x611F;&#x5E94;&#x7535;&#x6781;&#xFF0C;&#x89E6;&#x6478;&#x5C4F;&#x5236;&#x4F5C;&#x5382;&#x5546;&#x53EA;&#x9700;&#x5728;&#x4E1D;&#x5370;&#x5DE5;&#x5E8F;&#x9636;&#x6BB5;&#xFF0C;&#x5728;&#x89C4;&#x5B9A;&#x7684;&#x533A;&#x57DF;&#x5370;&#x4E0A;&#x7279;&#x5B9A;&#x7684;&#x6309;&#x952E;&#x5F62;&#x72B6;&#x5C31;&#x53EF;&#x4EE5;&#x4E86;&#x3002;</p>
+<h2 id="&#x8F6F;&#x4EF6;&#x5904;&#x7406;&#x57FA;&#x4E8E;android"><a href="#&#x8F6F;&#x4EF6;&#x5904;&#x7406;-&#x57FA;&#x4E8E;Android" class="headerlink" title="&#x8F6F;&#x4EF6;&#x5904;&#x7406;(&#x57FA;&#x4E8E;Android)"></a>&#x8F6F;&#x4EF6;&#x5904;&#x7406;(&#x57FA;&#x4E8E;Android)</h2><p>&#x89E6;&#x6478;&#x5C4F;&#x4E0A;&#x7684;&#x865A;&#x62DF;&#x7535;&#x5BB9;&#x6309;&#x952E;&#x548C;&#x72EC;&#x7ACB;&#x7535;&#x5BB9;&#x6309;&#x952E;&#x6709;&#x4E00;&#x4E2A;&#x5171;&#x6027;&#xFF0C;&#x90A3;&#x5C31;&#x662F;&#x4E24;&#x8005;&#x90FD;&#x662F;&#x7531;&#x89E6;&#x6478;&#x5C4F;&#x63A7;&#x5236;IC&#x6765;&#x63A7;&#x5236;&#x3002;&#x4E5F;&#x5C31;&#x662F;&#x8BF4;&#xFF0C;&#x5176;&#x5F80;&#x9A71;&#x52A8;&#x5C42;&#x4E0A;&#x62A5;&#x6570;&#x636E;&#x7684;&#x683C;&#x5F0F;&#x4E5F;&#x662F;&#x7531;&#x63A7;&#x5236;IC&#x51B3;&#x5B9A;&#x7684;&#x3002;</p>
+<h4 id="&#x61D2;&#x4EBA;&#x6A21;&#x5F0F;"><a href="#&#x61D2;&#x4EBA;&#x6A21;&#x5F0F;" class="headerlink" title="&#x61D2;&#x4EBA;&#x6A21;&#x5F0F;"></a>&#x61D2;&#x4EBA;&#x6A21;&#x5F0F;</h4><p>&#x63A7;&#x5236;IC&#x5BF9;&#x6309;&#x952E;&#x7684;&#x5904;&#x7406;&#x4E5F;&#x5206;&#x4E3A;&#x4E24;&#x79CD;&#xFF0C;&#x4E00;&#x79CD;&#x662F;&#x61D2;&#x4EBA;&#x6A21;&#x5F0F;&#xFF0C;&#x5C31;&#x662F;&#x4EC0;&#x4E48;&#x90FD;&#x4E0D;&#x505A;&#xFF0C;&#x628A;&#x6309;&#x952E;&#x5F53;&#x505A;&#x89E6;&#x6478;&#x4E00;&#x6837;&#x5904;&#x7406;&#xFF0C;&#x76F4;&#x63A5;&#x4E0A;&#x62A5;&#x5177;&#x4F53;&#x7684;&#x5750;&#x6807;&#x7ED9;&#x9A71;&#x52A8;&#x5C42;&#xFF0C;&#x628A;&#x6309;&#x952E;&#x89E3;&#x6790;&#x7684;&#x5DE5;&#x4F5C;&#x5B8C;&#x5168;&#x63A8;&#x7ED9;&#x4E0A;&#x5C42;&#x8F6F;&#x4EF6;&#x3002;</p>
+<p>&#x5728;&#x8FD9;&#x79CD;&#x6A21;&#x5F0F;&#x4E0B;&#xFF0C;&#x89E6;&#x6478;&#x5C4F;&#x7684;&#x9A71;&#x52A8;&#x91CC;&#xFF0C;&#x5176;&#x5B9E;&#x4E5F;&#x4E0D;&#x4F1A;&#x505A;&#x4EC0;&#x4E48;&#x6309;&#x952E;&#x5904;&#x7406;&#xFF0C;&#x800C;&#x662F;&#x7EE7;&#x7EED;&#x628A;&#x89E6;&#x6478;&#x5750;&#x6807;&#x5F80;Android&#x4E0A;&#x5C42;&#x4F20;&#x9012;&#x3002;&#x4E00;&#x822C;&#x4F1A;&#x63D0;&#x524D;&#x5728;&#x9A71;&#x52A8;&#x5C42;&#x5B9A;&#x4E49;&#x597D;&#x76F8;&#x5E94;&#x7684;&#x6309;&#x952E;&#x533A;&#x57DF;&#xFF0C;&#x5E76;&#x628A;&#x8BE5;&#x914D;&#x7F6E;&#x4FE1;&#x606F;&#x901A;&#x8FC7;linux kernel&#x7684;sysfs&#x66B4;&#x9732;&#x7ED9;&#x4E0A;&#x5C42;&#x3002;&#x6BD4;&#x5982;&#xFF1A;<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">//&#x6309;&#x952E;&#x6570;&#x91CF;</span><br><span class="line">#define TPD_KEY_COUNT   4</span><br><span class="line">//&#x6309;&#x952E;&#x4E2D;&#x5FC3;&#x5750;&#x6807;</span><br><span class="line">#define key_1           60,850</span><br><span class="line">#define key_2           180,850</span><br><span class="line">#define key_3           300,850</span><br><span class="line">#define key_4           420,850</span><br><span class="line">//&#x6309;&#x952E;&#x7C7B;&#x578B;</span><br><span class="line">#define TPD_KEYS        {KEY_BACK, KEY_HOME, KEY_MENU, KEY_SEARCH}</span><br><span class="line">//&#x6309;&#x952E;&#x533A;&#x57DF;&#xFF0C;&#x6BCF;&#x4E2A;&#x6570;&#x5B57;&#x5206;&#x522B;&#x8868;&#x793A;&#xFF1A;{X_CENTER, Y_CENTER, X_RANGE, Y_RANGE}</span><br><span class="line">#define TPD_KEYS_DIM    {{key_1,50,30},{key_2,50,30},{key_3,50,30},{key_4,50,30}}</span><br></pre></td></tr></table></figure></p>
+<p>&#x800C;&#x5728;Android Native&#x5C42;&#xFF0C;frameworks/base/services/input/EventHub.cpp:loadVirtualKeyMapLocked&#x4F1A;&#x53BB;&#x8BFB;&#x53D6;&#x8FD9;&#x4E2A;&#x6309;&#x952E;&#x914D;&#x7F6E;&#x6587;&#x4EF6;&#xFF0C;&#x5177;&#x4F53;&#x5B9A;&#x4E49;&#x5728;&#x6E90;&#x6587;&#x4EF6;frameworks/base/libs/androidfw/VirtualKeyMap.cpp&#x3002;</p>
+<p>&#x8FD9;&#x91CC;&#x8981;&#x6CE8;&#x610F;&#x7684;&#x662F;&#xFF0C;&#x5728;&#x9A71;&#x52A8;&#x5C42;&#xFF0C;&#x5E76;&#x4E0D;&#x662F;&#x6240;&#x6709;&#x7684;&#x60C5;&#x51B5;&#x4E0B;&#xFF0C;&#x90FD;&#x628A;&#x6309;&#x952E;&#x89E3;&#x6790;&#x5DE5;&#x4F5C;&#x4F20;&#x9012;&#x7ED9;&#x4E0A;&#x5C42;&#x3002;&#x5F53;&#x624B;&#x673A;&#x5904;&#x4E8E;factory mode&#x548C;recovery mode&#x7684;&#x65F6;&#x5019;&#xFF0C;&#x7531;&#x4E8E;Android&#x4E0A;&#x5C42;&#x5E76;&#x6CA1;&#x6709;&#x8FD0;&#x884C;&#x8D77;&#x6765;&#xFF0C;&#x6240;&#x4EE5;&#x5728;&#x8FD9;&#x79CD;&#x60C5;&#x51B5;&#x4E0B;&#xFF0C;&#x9A71;&#x52A8;&#x5C42;&#x8FD8;&#x662F;&#x5F97;&#x505A;&#x6309;&#x952E;&#x89E3;&#x6790;&#x5DE5;&#x4F5C;&#x3002;</p>
+<h3 id="&#x597D;&#x4EBA;&#x6A21;&#x5F0F;"><a href="#&#x597D;&#x4EBA;&#x6A21;&#x5F0F;" class="headerlink" title="&#x597D;&#x4EBA;&#x6A21;&#x5F0F;"></a>&#x597D;&#x4EBA;&#x6A21;&#x5F0F;</h3><p>&#x89E6;&#x63A7;IC&#x7684;&#x53E6;&#x4E00;&#x79CD;&#x6A21;&#x5F0F;&#x662F;&#x201C;&#x597D;&#x4EBA;&#x6A21;&#x5F0F;&#x201D;&#xFF0C;&#x8FD9;&#x79CD;&#x6A21;&#x5F0F;&#x4E0B;&#xFF0C;&#x89E6;&#x63A7;IC&#x4F1A;&#x4E13;&#x95E8;&#x5206;&#x914D;&#x5BC4;&#x5B58;&#x5668;&#x6807;&#x5FD7;&#x4F4D;&#x7ED9;&#x6BCF;&#x4E00;&#x4E2A;&#x7535;&#x5BB9;&#x6309;&#x952E;&#xFF0C;&#x7528;&#x6765;&#x6807;&#x793A;&#x5F53;&#x524D;&#x6309;&#x952E;&#x72B6;&#x6001;&#x3002;&#x9A71;&#x52A8;&#x5C42;&#x8BFB;&#x5230;&#x8FD9;&#x4E2A;&#x72B6;&#x6001;&#x540E;&#xFF0C;&#x4E5F;&#x4F1A;&#x76F4;&#x63A5;&#x5229;&#x7528;input_report_key&#x4E0A;&#x62A5;keyevent&#x7ED9;Android&#x4E0A;&#x5C42;&#x3002;</p>
+<h2 id="&#x7ED3;&#x8BED;"><a href="#&#x7ED3;&#x8BED;" class="headerlink" title="&#x7ED3;&#x8BED;"></a>&#x7ED3;&#x8BED;</h2><p>&#x5F53;&#x7136;&#xFF0C;&#x8FD9;&#x91CC;&#x9610;&#x8FF0;&#x7684;&#x53EA;&#x662F;&#x6B63;&#x5E38;&#x6D41;&#x7A0B;&#x4E0B;&#x7684;&#x5904;&#x7406;&#x3002;&#x5BF9;&#x4E8E;&#x4E00;&#x4E9B;&#x6709;&#x7279;&#x6B8A;&#x9700;&#x6C42;&#x7684;&#xFF0C;&#x53EF;&#x80FD;&#x9700;&#x8981;&#x89E6;&#x63A7;IC&#x56FA;&#x4EF6;&#x3001;&#x89E6;&#x6478;&#x5C4F;&#x9A71;&#x52A8;&#x548C;Android&#x4E0A;&#x5C42;&#x4E09;&#x8005;&#x76F8;&#x4E92;&#x914D;&#x5408;&#xFF0C;&#x5904;&#x7406;&#x60C5;&#x51B5;&#x4E5F;&#x548C;&#x8FD9;&#x91CC;&#x9610;&#x8FF0;&#x7684;&#x4E0D;&#x4E00;&#x6837;&#x3002;</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://blog.miopeco.com/2014/08/12/android_cap_touch/" data-id="cinsczq3g00031uzegnzjjlze" class="article-share-link">分享到</a>
+      
+        <a href="http://blog.miopeco.com/2014/08/12/android_cap_touch/#disqus_thread" class="article-comment-link">评论</a>
+      
+      
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/android/">android</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/touchscreen/">touchscreen</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2014/08/13/android_adb/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          ADB 常见错误分析
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2014/07/21/paste_terminal_vim/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">在LINUX终端和VIM下复制粘贴</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+<section id="comments">
+  <div id="disqus_thread">
+    <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  </div>
+</section>
+</section>
+      
+        <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget">
+      <ul id="recent-post" class="no-thumbnail">
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category"><a class="article-category-link" href="/categories/吐槽/">吐槽</a></p>
+              <p class="item-title"><a href="/2016/05/04/baidu-clear/" class="title">净化百度，从我做起</a></p>
+              <p class="item-date"><time datetime="2016-05-04T04:19:07.000Z" itemprop="datePublished">2016-05-04</time></p>
+            </div>
+          </li>
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category"><a class="article-category-link" href="/categories/linux/">linux</a></p>
+              <p class="item-title"><a href="/2015/06/10/bash_space/" class="title">BASH 中的空格</a></p>
+              <p class="item-date"><time datetime="2015-06-09T16:00:00.000Z" itemprop="datePublished">2015-06-10</time></p>
+            </div>
+          </li>
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category"><a class="article-category-link" href="/categories/linux/">linux</a></p>
+              <p class="item-title"><a href="/2015/06/03/bash_print_animation/" class="title">终端中的动画</a></p>
+              <p class="item-date"><time datetime="2015-06-02T16:00:00.000Z" itemprop="datePublished">2015-06-03</time></p>
+            </div>
+          </li>
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category"><a class="article-category-link" href="/categories/linux/">linux</a></p>
+              <p class="item-title"><a href="/2015/06/02/bash_dirstack/" class="title">BASH 的目录切换</a></p>
+              <p class="item-date"><time datetime="2015-06-01T16:00:00.000Z" itemprop="datePublished">2015-06-02</time></p>
+            </div>
+          </li>
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category"><a class="article-category-link" href="/categories/linux/">linux</a></p>
+              <p class="item-title"><a href="/2015/06/01/bash_debug/" class="title">BASH 的调试手段</a></p>
+              <p class="item-date"><time datetime="2015-05-31T16:00:00.000Z" itemprop="datePublished">2015-06-01</time></p>
+            </div>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">分类</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/android/">android</a><span class="category-list-count">3</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/language/">language</a><span class="category-list-count">13</span><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/language/c/">c</a><span class="category-list-count">13</span></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><span class="category-list-count">11</span><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/qemu/">qemu</a><span class="category-list-count">1</span></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/security/">security</a><span class="category-list-count">2</span><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/security/android/">android</a><span class="category-list-count">1</span></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/吐槽/">吐槽</a><span class="category-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/ADBlock/" style="font-size: 10px;">ADBlock</a> <a href="/tags/Baidu/" style="font-size: 10px;">Baidu</a> <a href="/tags/Lantern/" style="font-size: 10px;">Lantern</a> <a href="/tags/adb/" style="font-size: 10px;">adb</a> <a href="/tags/android/" style="font-size: 13.33px;">android</a> <a href="/tags/arm/" style="font-size: 10px;">arm</a> <a href="/tags/assignment-word/" style="font-size: 10px;">assignment word</a> <a href="/tags/bash/" style="font-size: 13.33px;">bash</a> <a href="/tags/bashdb/" style="font-size: 10px;">bashdb</a> <a href="/tags/c/" style="font-size: 20px;">c</a> <a href="/tags/c-faq/" style="font-size: 20px;">c-faq</a> <a href="/tags/csi/" style="font-size: 10px;">csi</a> <a href="/tags/debug/" style="font-size: 10px;">debug</a> <a href="/tags/dirstack/" style="font-size: 10px;">dirstack</a> <a href="/tags/icd/" style="font-size: 10px;">icd</a> <a href="/tags/linux/" style="font-size: 16.67px;">linux</a> <a href="/tags/md5/" style="font-size: 10px;">md5</a> <a href="/tags/popd/" style="font-size: 10px;">popd</a> <a href="/tags/pushd/" style="font-size: 10px;">pushd</a> <a href="/tags/qemu/" style="font-size: 10px;">qemu</a> <a href="/tags/regmap/" style="font-size: 10px;">regmap</a> <a href="/tags/script-animation/" style="font-size: 10px;">script animation</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/sensor/" style="font-size: 10px;">sensor</a> <a href="/tags/smtp/" style="font-size: 10px;">smtp</a> <a href="/tags/space/" style="font-size: 10px;">space</a> <a href="/tags/syscall/" style="font-size: 10px;">syscall</a> <a href="/tags/touchscreen/" style="font-size: 10px;">touchscreen</a> <a href="/tags/tr/" style="font-size: 10px;">tr</a> <a href="/tags/unifdef/" style="font-size: 10px;">unifdef</a> <a href="/tags/vim/" style="font-size: 10px;">vim</a> <a href="/tags/条件编译/" style="font-size: 10px;">条件编译</a> <a href="/tags/逆向/" style="font-size: 10px;">逆向</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">归档</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/05/">五月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/06/">六月 2015</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/03/">三月 2015</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/09/">九月 2014</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/08/">八月 2014</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/07/">七月 2014</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/04/">四月 2014</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/09/">九月 2013</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/08/">八月 2013</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/07/">七月 2013</a><span class="archive-list-count">8</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/05/">五月 2013</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2012/12/">十二月 2012</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap widget-list">
+    <h3 class="widget-title">链接</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="http://tinylab.org">TINYLAB</a>
+          </li>
+        
+          <li>
+            <a href="http://oss.lzu.edu.cn">LZUOSS</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+
+  
+  <div id="toTop" class="fa fa-chevron-up"></div>
+</aside>
+      
+    </div>
+    <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      &copy; 2016 Pingbo<br>
+      Powered by <a href="http://hexo.io/" target="_blank">Hexo</a>. Theme by <a href="http://github.com/ppoffice">PPOffice</a>
+    </div>
+  </div>
+</footer>
+    
+
+<script>
+  var disqus_shortname = 'miopecolab';
+  (function(){
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+
+<script src="//ajax.useso.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+
+
+  <link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+  <script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+
+<script src="/js/script.js"></script>
+
+  </div>
+</body>
+</html>

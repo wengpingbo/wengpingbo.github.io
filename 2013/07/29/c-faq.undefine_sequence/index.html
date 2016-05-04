@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  
+  <title>3.8-未定义行为与 sequence point | Pingbo&#39;s Blog</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="description" content="在 C 语言中，我们经常会碰到很多新奇的写法，比如：
+1234a[i]=i++;i++ * i++;i = i++;a^=b^=a^=b; //swap a, b
+而这些表达式，虽然看上去很简洁，但是结果可能是不确定的。因为 ANSI C 中并没有对这些行为定义。
+通常来说，在 C 中，有 3 种情况：">
+<meta property="og:type" content="article">
+<meta property="og:title" content="3.8-未定义行为与 sequence point">
+<meta property="og:url" content="http://blog.miopeco.com/2013/07/29/c-faq.undefine_sequence/index.html">
+<meta property="og:site_name" content="Pingbo's Blog">
+<meta property="og:description" content="在 C 语言中，我们经常会碰到很多新奇的写法，比如：
+1234a[i]=i++;i++ * i++;i = i++;a^=b^=a^=b; //swap a, b
+而这些表达式，虽然看上去很简洁，但是结果可能是不确定的。因为 ANSI C 中并没有对这些行为定义。
+通常来说，在 C 中，有 3 种情况：">
+<meta property="og:updated_time" content="2016-05-04T04:11:19.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="3.8-未定义行为与 sequence point">
+<meta name="twitter:description" content="在 C 语言中，我们经常会碰到很多新奇的写法，比如：
+1234a[i]=i++;i++ * i++;i = i++;a^=b^=a^=b; //swap a, b
+而这些表达式，虽然看上去很简洁，但是结果可能是不确定的。因为 ANSI C 中并没有对这些行为定义。
+通常来说，在 C 中，有 3 种情况：">
+  
+  
+    <link rel="icon" href="/favicon.png">
+  
+  <link href='//fonts.useso.com/css?family=Open+Sans:400italic,400,600' rel='stylesheet' type='text/css'>
+  <link href="//fonts.useso.com/css?family=Source+Code+Pro" rel="stylesheet" type="text/css">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/font-awesome/css/font-awesome.min.css">
+  
+<!-- Google Analytics -->
+<script type="text/javascript">
+(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+})(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+ga('create', 'UA-62257978-1', 'auto');
+ga('send', 'pageview');
+
+</script>
+<!-- End Google Analytics -->
+
+
+</head>
+<body>
+  <div id="container">
+    <header id="header">
+  <div id="header-main" class="header-inner">
+    <div class="outer">
+      <a href="/" id="logo"><i class="logo"></i><span class="site-title">Pingbo&#39;s Blog</span></a>
+      <nav id="main-nav">
+        
+          <a class="main-nav-link" href="/">首页</a>
+        
+          <a class="main-nav-link" href="/archives">存档</a>
+        
+          <a class="main-nav-link" href="/about">关于这里</a>
+        
+          <a class="main-nav-link" href="/aboutme">关于我</a>
+        
+      </nav>
+      <nav id="sub-nav">
+        <div class="profile" id="profile-nav">
+          <a id="profile-anchor" href="javascript:;"><img class="avatar" src="/media/avatar.jpg"><i class="fa fa-caret-down"></i></a>
+        </div>
+      </nav>
+      <div id="search-form-wrap">
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" results="0" class="search-form-input" placeholder="Search"><button type="submit" class="search-form-submit"> </button><input type="hidden" name="sitesearch" value="http://blog.miopeco.com"></form>
+      </div>
+    </div>
+  </div>
+  <div id="main-nav-mobile" class="header-sub header-inner">
+    <table class="menu outer">
+      <tr>
+      
+        <td><a class="main-nav-link" href="/">首页</a></td>
+      
+        <td><a class="main-nav-link" href="/archives">存档</a></td>
+      
+        <td><a class="main-nav-link" href="/about">关于这里</a></td>
+      
+        <td><a class="main-nav-link" href="/aboutme">关于我</a></td>
+      
+      <td>
+        <form action="//google.com/search" method="get" accept-charset="UTF-8" class="search-form"><input type="search" name="q" results="0" class="search-form-input" placeholder="Search"><input type="hidden" name="sitesearch" value="http://blog.miopeco.com"></form>
+      </td>
+      </tr>
+    </table>
+  </div>
+  
+</header>
+    <div class="outer">
+      <aside id="profile">
+  <div class="inner profile-inner">
+  	<div class="base-info profile-block">
+		  <img id="avatar" src="/media/avatar.jpg">
+      <h2 id="name">Pingbo</h2>
+      <h3 id="title">程序猿</h3>
+      <span id="location"><i class="fa fa-map-marker"></i>Zhuhai, China</span>
+      <a id="follow" href="http://www.zhihu.com/people/wen-ping-bo">关注我</a>
+  	</div>
+    <div class="article-info profile-block">
+      <div class="article-info-block">
+        30
+        <span>文章</span>
+      </div>
+      <div class="article-info-block">
+        33
+        <span>标签</span>
+      </div>
+    </div>
+    <div class="contact-info profile-block">
+      <table class="contact-list">
+        <tr>
+        
+          <td><a href="https://github.com/wengpingbo" title="github"><i class="fa fa-github"></i></a></td>
+        
+          <td><a href="http://weibo.com/echowpb" title="weibo"><i class="fa fa-weibo"></i></a></td>
+        
+          <td><a href="https://plus.google.com/u/0/117917427002657037112" title="google-plus"><i class="fa fa-google-plus"></i></a></td>
+        
+          <td><a href="/atom.xml" title="rss"><i class="fa fa-rss"></i></a></td>
+        
+        </tr>
+      </table>
+    </div>
+  </div>
+</aside>
+      <section id="main"><article id="post-c-faq.undefine_sequence" class="article article-type-post" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+    
+      <header class="article-header">
+        
+  
+    <h1 class="article-title" itemprop="name">
+      3.8-未定义行为与 sequence point
+    </h1>
+  
+
+        <div class="article-meta">
+          <div class="article-date">
+  <i class="fa fa-calendar"></i>
+  <a href="/2013/07/29/c-faq.undefine_sequence/">
+    <time datetime="2013-07-28T16:00:00.000Z" itemprop="datePublished">2013-07-29</time>
+  </a>
+</div>
+          
+  <div class="article-category">
+  	<i class="fa fa-folder"></i>
+    <a class="article-category-link" href="/categories/language/">language</a><i class="fa fa-angle-right"></i><a class="article-category-link" href="/categories/language/c/">c</a>
+  </div>
+
+        </div>
+      </header>
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <p>&#x5728; C &#x8BED;&#x8A00;&#x4E2D;&#xFF0C;&#x6211;&#x4EEC;&#x7ECF;&#x5E38;&#x4F1A;&#x78B0;&#x5230;&#x5F88;&#x591A;&#x65B0;&#x5947;&#x7684;&#x5199;&#x6CD5;&#xFF0C;&#x6BD4;&#x5982;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">a[i]=i++;</span><br><span class="line">i++ * i++;</span><br><span class="line">i = i++;</span><br><span class="line">a^=b^=a^=b; //swap a, b</span><br></pre></td></tr></table></figure>
+<p>&#x800C;&#x8FD9;&#x4E9B;&#x8868;&#x8FBE;&#x5F0F;&#xFF0C;&#x867D;&#x7136;&#x770B;&#x4E0A;&#x53BB;&#x5F88;&#x7B80;&#x6D01;&#xFF0C;&#x4F46;&#x662F;&#x7ED3;&#x679C;&#x53EF;&#x80FD;&#x662F;&#x4E0D;&#x786E;&#x5B9A;&#x7684;&#x3002;&#x56E0;&#x4E3A; ANSI C &#x4E2D;&#x5E76;&#x6CA1;&#x6709;&#x5BF9;&#x8FD9;&#x4E9B;&#x884C;&#x4E3A;&#x5B9A;&#x4E49;&#x3002;</p>
+<p>&#x901A;&#x5E38;&#x6765;&#x8BF4;&#xFF0C;&#x5728; C &#x4E2D;&#xFF0C;&#x6709; 3 &#x79CD;&#x60C5;&#x51B5;&#xFF1A;</p>
+<a id="more"></a>
+<ul>
+<li>implementation-defined - &#x5C31;&#x662F; ANSI C &#x6807;&#x51C6;&#x4E2D;&#x6709;&#x660E;&#x786E;&#x5B9A;&#x4E49;&#x7684;&#xFF0C;&#x7F16;&#x8BD1;&#x5668;&#x5FC5;&#x987B;&#x4FDD;&#x8BC1;&#x6807;&#x51C6;&#x6240;&#x5217;&#x7684;&#x7279;&#x6027;&#x90FD;&#x5DF2;&#x7ECF;&#x5B9E;&#x73B0;&#x3002;</li>
+<li>unspecified - &#x5C3D;&#x7BA1; ANSI C &#x4E2D;&#x6709;&#x660E;&#x786E;&#x5B9A;&#x4E49;&#xFF0C;&#x4F46;&#x662F;&#x5E76;&#x6CA1;&#x6709;&#x660E;&#x786E;&#x8BF4;&#x660E;&#x5E94;&#x8BE5;&#x5177;&#x6709;&#x90A3;&#x4E9B;&#x7279;&#x6027;&#xFF0C;&#x4E5F;&#x5C31;&#x662F;&#x8BF4;&#x7F16;&#x8BD1;&#x5668;&#x53EF;&#x4EE5;&#x81EA;&#x5DF1;&#x505A;&#x4E00;&#x79CD;&#x9009;&#x62E9;&#xFF0C;&#x53EA;&#x8981;&#x5B9E;&#x73B0;&#x4E86;&#x6807;&#x51C6;&#x6240;&#x5B9A;&#x4E49;&#x7684;&#x3002;</li>
+<li>undefined - &#x672A;&#x5B9A;&#x4E49;&#xFF0C;&#x4E5F;&#x5C31;&#x662F;&#x7F16;&#x8BD1;&#x5668;&#x53EF;&#x4EE5;&#x4E0D;&#x5177;&#x6709;&#x8FD9;&#x79CD;&#x529F;&#x80FD;&#x6216;&#x7279;&#x6027;&#xFF0C;&#x751A;&#x81F3;&#x4E0D;&#x63A5;&#x53D7;&#x5E26;&#x6709;&#x8FD9;&#x79CD;&#x7279;&#x6027;&#x7684;&#x7A0B;&#x5E8F;</li>
+</ul>
+<p>&#x73B0;&#x5728;&#xFF0C;&#x6211;&#x4EEC;&#x518D;&#x56DE;&#x8FC7;&#x5934;&#x6765;&#xFF0C;&#x770B;&#x770B;&#x8FD9;&#x4E9B;&#x65B0;&#x5947;&#x7684;&#x5199;&#x6CD5;&#x3002;&#x53D1;&#x73B0;&#x8FD9;&#x4E9B;&#x8BED;&#x53E5;&#x90FD;&#x6709;&#x4E00;&#x4E2A;&#x7279;&#x70B9;&#xFF1A;&#x5728;&#x540C;&#x4E00;&#x4E2A;&#x8BED;&#x53E5;&#x4E2D;&#xFF0C;&#x4E00;&#x4E2A; object &#x88AB;&#x5F15;&#x7528;&#x4E24;&#x6B21;&#x4EE5;&#x4E0A;&#xFF0C;&#x4E14;&#x503C;&#x88AB;&#x4FEE;&#x6539;&#x3002;</p>
+<p>&#x8981;&#x89E3;&#x91CA;&#x8FD9;&#x79CD;&#x590D;&#x6742;&#x7684;&#x8868;&#x8FBE;&#x5F0F;&#xFF0C;&#x6211;&#x4EEC;&#x5148;&#x6765;&#x770B;&#x4E00;&#x4E2A;&#x5728; C/C++ &#x8BED;&#x8A00;&#x4E2D;&#x7ECF;&#x5E38;&#x63D0;&#x5230;&#x7684;&#x4E00;&#x4E2A;&#x6982;&#x5FF5;&#xFF1A;sequence point&#x3002;&#x6211;&#x4EEC;&#x53EF;&#x4EE5;&#x628A;&#x5B83;&#x7FFB;&#x8BD1;&#x4E3A;&#x201C;&#x987A;&#x5E8F;&#x70B9;&#x201D;&#xFF0C;&#x4F46;&#x662F;&#x6211;&#x66F4;&#x613F;&#x610F;&#x7FFB;&#x8BD1;&#x4E3A;&#x68C0;&#x67E5;&#x70B9;&#x3002;</p>
+<p>sequence point&#x7684;&#x5B9A;&#x4E49;&#x5982;&#x4E0B;&#xFF1A;</p>
+<blockquote>
+<p>A sequence point is a point in time at which the dust has settled and all side effects which have been seen so far are guaranteed to be complete.</p>
+</blockquote>
+<p>&#x7FFB;&#x8BD1;&#x8FC7;&#x6765;&#xFF0C;&#x610F;&#x601D;&#x5C31;&#x662F;&#x8BF4;&#x68C0;&#x67E5;&#x70B9;&#x662F;&#x6307;&#x5728;&#x8FD9;&#x4E2A;&#x70B9;&#x4E4B;&#x524D;&#x7684;&#x6240;&#x6709;&#x64CD;&#x4F5C;&#x548C;&#x526F;&#x6548;&#x679C;&#xFF0C;&#x90FD;&#x4F1A;&#x88AB;&#x5904;&#x7406;&#x5B8C;&#xFF0C;&#x7136;&#x540E;&#x624D;&#x4F1A;&#x5904;&#x7406;&#x68C0;&#x67E5;&#x70B9;&#x4E4B;&#x540E;&#x7684;&#x4E1C;&#x897F;&#x3002;</p>
+<p>&#x5728; ISO IEC &#x7684; Annex C &#x4E2D;&#xFF0C;&#x5BF9;&#x4E00;&#x4E2A;&#x68C0;&#x67E5;&#x70B9;&#xFF0C;&#x6709;&#x660E;&#x786E;&#x7684;&#x8BF4;&#x660E;&#x3002;&#x8BF4;&#x7684;&#x6709;&#x70B9;&#x7EC6;&#xFF0C;&#x6211;&#x4EEC;&#x53EF;&#x4EE5;&#x501F;&#x7528; c-faq &#x4E0A;&#x6240;&#x603B;&#x7ED3;&#x7684; 3 &#x70B9;&#xFF1A;</p>
+<blockquote>
+<ol>
+<li>at the end of the evaluation of a full expression (a full expression is an expression statement, or any other expression which is not a subexpression within any larger expression);</li>
+<li>at the ||, &amp;&amp;, ?:, and comma operators; and</li>
+<li>at a function call (after the evaluation of all the arguments, and just before the actual call).</li>
+</ol>
+</blockquote>
+<p>&#x4E5F;&#x5C31;&#x662F;&#x8BF4;&#x5728;&#x4E00;&#x4E2A;&#x8868;&#x8FBE;&#x5F0F;&#x7684;&#x8D4B;&#x503C;&#x6700;&#x540E;&#xFF0C;&#x5728; ||, &amp;&amp;, ?: &#x548C;&#x9017;&#x53F7;&#xFF0C;&#x5728;&#x51FD;&#x6570;&#x8C03;&#x7528;&#x7684;&#x5730;&#x65B9;&#xFF0C;&#x90FD;&#x662F;&#x68C0;&#x67E5;&#x70B9;&#x3002;</p>
+<p>&#x6211;&#x4EEC;&#x90FD;&#x77E5;&#x9053;&#x81EA;&#x589E;&#x548C;&#x81EA;&#x51CF;&#x64CD;&#x4F5C;&#x90FD;&#x6709;&#x4E24;&#x6B65;&#x8BED;&#x4E49;&#xFF0C;&#x4E00;&#x4E2A;&#x662F;&#x8D4B;&#x503C;&#xFF0C;&#x53E6;&#x5916;&#x4E00;&#x4E2A;&#x662F;&#x52A0;/&#x51CF;&#x3002;&#x90A3;&#x4E2A;&#x5148;&#x505A;&#xFF0C;&#x90A3;&#x5C31;&#x770B;&#x81EA;&#x589E;/&#x81EA;&#x51CF;&#x64CD;&#x4F5C;&#x7B26;&#x662F;&#x5728;&#x53D8;&#x91CF;&#x7684;&#x524D;&#x9762;&#xFF0C;&#x8FD8;&#x662F;&#x540E;&#x9762;&#x4E86;&#xFF0C;&#x4F46;&#x662F;&#x53E6;&#x5916;&#x4E00;&#x4E2A;&#x4EC0;&#x4E48;&#x65F6;&#x5019;&#x505A;&#xFF0C;ANSI C &#x6CA1;&#x6709;&#x5B9A;&#x4E49;&#xFF0C;ANSI C &#x53EA;&#x5B9A;&#x4E49;&#x4E86;&#x5728;&#x68C0;&#x67E5;&#x70B9;&#x7684;&#x5730;&#x65B9;&#xFF0C;&#x4F60;&#x628A;&#x8FD9;&#x4E9B;&#x526F;&#x64CD;&#x4F5C;&#x5168;&#x90E8;&#x505A;&#x4E86;&#x5C31; OK&#x3002;&#x4F46;&#x662F;&#x5982;&#x679C;&#x5728;&#x4E00;&#x4E2A;&#x68C0;&#x67E5;&#x70B9;&#x5185;&#x90E8;&#xFF0C;&#x526F;&#x64CD;&#x4F5C;&#x5E94;&#x8BE5;&#x4EC0;&#x4E48;&#x65F6;&#x5019;&#x505A;&#xFF1F;&#x90A3;&#x5C31;&#x770B;&#x4F60;&#x7528;&#x7684;&#x662F;&#x54EA;&#x4E2A;&#x7F16;&#x8BD1;&#x5668;&#x4E86;&#x3002;</p>
+<p>&#x518D;&#x770B; i=i++; &#x8FD9;&#x4E2A;&#x8BED;&#x53E5;&#x3002;&#x68C0;&#x67E5;&#x70B9;&#x5728;&#x8BED;&#x53E5;&#x7ED3;&#x675F;&#x7684;&#x5730;&#x65B9;&#xFF0C;&#x4F46;&#x662F;&#x5728;&#x68C0;&#x67E5;&#x70B9;&#x5185;&#x90E8;&#xFF0C;&#x5374;&#x4E24;&#x6B21;&#x5F15;&#x7528;&#x4E86; i&#xFF0C;&#x4E14;&#x4FEE;&#x6539;&#x4E86; i &#x7684;&#x503C;&#x3002;&#x90A3;&#x4E48;&#x6700;&#x540E;i&#x7684;&#x503C;&#x662F;&#x52A0;&#x4E86; 1,&#x8FD8;&#x662F;&#x6CA1;&#x53D8;&#xFF1F;&#x7531;&#x4E8E; ANSI C &#x6CA1;&#x6709;&#x660E;&#x786E;&#x5B9A;&#x4E49;&#xFF0C;&#x6240;&#x4EE5;&#x53EA;&#x80FD;&#x770B;&#x7F16;&#x8BD1;&#x5668;&#x662F;&#x600E;&#x4E48;&#x5904;&#x7406;&#x8FD9;&#x79CD;&#x60C5;&#x51B5;&#x4E86;&#x3002;&#x6362;&#x53E5;&#x8BDD;&#x8BF4;&#xFF0C;&#x5728;&#x4E0D;&#x540C;&#x7684;&#x7F16;&#x8BD1;&#x5668;&#x4E0B;&#xFF0C;&#x8FD9;&#x4E2A;&#x8BED;&#x53E5;&#x7684;&#x6267;&#x884C;&#x7ED3;&#x679C;&#x53EF;&#x80FD;&#x4E0D;&#x4E00;&#x6837;&#xFF0C;&#x8FD9;&#x5728;&#x7A0B;&#x5E8F;&#x4E2D;&#x662F;&#x7EDD;&#x5BF9;&#x4E0D;&#x5141;&#x8BB8;&#x7684;&#xFF01;</p>
+<p>&#x5F00;&#x5934;&#x6240;&#x5217;&#x7684;&#x5176;&#x4ED6;&#x4F8B;&#x5B50;&#xFF0C;&#x90FD;&#x662F;&#x8FD9;&#x4E2A;&#x9053;&#x7406;&#x3002;&#x90A3;&#x4E48;&#x8FD9;&#x4E2A;&#x8868;&#x8FBE;&#x5F0F;&#x662F;&#x5426;&#x6709;&#x95EE;&#x9898;&#xFF1A;</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">i++ &amp;&amp; i++&#xFF1F;</span><br></pre></td></tr></table></figure>
+<p>&#x7B54;&#x6848;&#x662F;&#x6B63;&#x786E;&#x7684;&#xFF0C;WHY&#xFF1F;&#x56DE;&#x8FC7;&#x5934;&#x6765;&#x770B;&#x68C0;&#x67E5;&#x70B9;&#x7684;&#x5B9A;&#x4E49;&#xFF0C;&amp;&amp; &#x662F;&#x4E00;&#x4E2A;&#x68C0;&#x67E5;&#x70B9;&#xFF0C;&#x4E5F;&#x5C31;&#x662F;&#x8BF4;&#x526F;&#x64CD;&#x4F5C;&#x6267;&#x884C;&#x7684;&#x987A;&#x5E8F;&#x88AB; ANSI C &#x4E25;&#x683C;&#x5B9A;&#x4E49;&#x4E86;,&#x90A3;&#x4E48;&#x4E5F;&#x5C31;&#x4E0D;&#x5B58;&#x5728;&#x4E8C;&#x4E49;&#x6027;&#x95EE;&#x9898;&#x4E86;&#x3002;</p>
+
+      
+    </div>
+    <footer class="article-footer">
+      <a data-url="http://blog.miopeco.com/2013/07/29/c-faq.undefine_sequence/" data-id="cinsczq57001g1uze6m9xrdkq" class="article-share-link">分享到</a>
+      
+        <a href="http://blog.miopeco.com/2013/07/29/c-faq.undefine_sequence/#disqus_thread" class="article-comment-link">评论</a>
+      
+      
+  <ul class="article-tag-list"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/c/">c</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/c-faq/">c-faq</a></li></ul>
+
+    </footer>
+  </div>
+  
+    
+<nav id="article-nav">
+  
+    <a href="/2013/07/31/c-faq.reference/" id="article-nav-newer" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Newer</strong>
+      <div class="article-nav-title">
+        
+          4.8-引用传递的骗局
+        
+      </div>
+    </a>
+  
+  
+    <a href="/2013/07/29/c-faq.brance_seq/" id="article-nav-older" class="article-nav-link-wrap">
+      <strong class="article-nav-caption">Older</strong>
+      <div class="article-nav-title">3.4-括号与求值顺序</div>
+    </a>
+  
+</nav>
+
+  
+</article>
+
+
+<section id="comments">
+  <div id="disqus_thread">
+    <noscript>Please enable JavaScript to view the <a href="//disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  </div>
+</section>
+</section>
+      
+        <aside id="sidebar">
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">最新文章</h3>
+    <div class="widget">
+      <ul id="recent-post" class="no-thumbnail">
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category"><a class="article-category-link" href="/categories/吐槽/">吐槽</a></p>
+              <p class="item-title"><a href="/2016/05/04/baidu-clear/" class="title">净化百度，从我做起</a></p>
+              <p class="item-date"><time datetime="2016-05-04T04:19:07.000Z" itemprop="datePublished">2016-05-04</time></p>
+            </div>
+          </li>
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category"><a class="article-category-link" href="/categories/linux/">linux</a></p>
+              <p class="item-title"><a href="/2015/06/10/bash_space/" class="title">BASH 中的空格</a></p>
+              <p class="item-date"><time datetime="2015-06-09T16:00:00.000Z" itemprop="datePublished">2015-06-10</time></p>
+            </div>
+          </li>
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category"><a class="article-category-link" href="/categories/linux/">linux</a></p>
+              <p class="item-title"><a href="/2015/06/03/bash_print_animation/" class="title">终端中的动画</a></p>
+              <p class="item-date"><time datetime="2015-06-02T16:00:00.000Z" itemprop="datePublished">2015-06-03</time></p>
+            </div>
+          </li>
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category"><a class="article-category-link" href="/categories/linux/">linux</a></p>
+              <p class="item-title"><a href="/2015/06/02/bash_dirstack/" class="title">BASH 的目录切换</a></p>
+              <p class="item-date"><time datetime="2015-06-01T16:00:00.000Z" itemprop="datePublished">2015-06-02</time></p>
+            </div>
+          </li>
+        
+          <li>
+            
+            <div class="item-inner">
+              <p class="item-category"><a class="article-category-link" href="/categories/linux/">linux</a></p>
+              <p class="item-title"><a href="/2015/06/01/bash_debug/" class="title">BASH 的调试手段</a></p>
+              <p class="item-date"><time datetime="2015-05-31T16:00:00.000Z" itemprop="datePublished">2015-06-01</time></p>
+            </div>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">分类</h3>
+    <div class="widget">
+      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/android/">android</a><span class="category-list-count">3</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/language/">language</a><span class="category-list-count">13</span><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/language/c/">c</a><span class="category-list-count">13</span></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/linux/">linux</a><span class="category-list-count">11</span><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/linux/qemu/">qemu</a><span class="category-list-count">1</span></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/security/">security</a><span class="category-list-count">2</span><ul class="category-list-child"><li class="category-list-item"><a class="category-list-link" href="/categories/security/android/">android</a><span class="category-list-count">1</span></li></ul></li><li class="category-list-item"><a class="category-list-link" href="/categories/吐槽/">吐槽</a><span class="category-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">标签云</h3>
+    <div class="widget tagcloud">
+      <a href="/tags/ADBlock/" style="font-size: 10px;">ADBlock</a> <a href="/tags/Baidu/" style="font-size: 10px;">Baidu</a> <a href="/tags/Lantern/" style="font-size: 10px;">Lantern</a> <a href="/tags/adb/" style="font-size: 10px;">adb</a> <a href="/tags/android/" style="font-size: 13.33px;">android</a> <a href="/tags/arm/" style="font-size: 10px;">arm</a> <a href="/tags/assignment-word/" style="font-size: 10px;">assignment word</a> <a href="/tags/bash/" style="font-size: 13.33px;">bash</a> <a href="/tags/bashdb/" style="font-size: 10px;">bashdb</a> <a href="/tags/c/" style="font-size: 20px;">c</a> <a href="/tags/c-faq/" style="font-size: 20px;">c-faq</a> <a href="/tags/csi/" style="font-size: 10px;">csi</a> <a href="/tags/debug/" style="font-size: 10px;">debug</a> <a href="/tags/dirstack/" style="font-size: 10px;">dirstack</a> <a href="/tags/icd/" style="font-size: 10px;">icd</a> <a href="/tags/linux/" style="font-size: 16.67px;">linux</a> <a href="/tags/md5/" style="font-size: 10px;">md5</a> <a href="/tags/popd/" style="font-size: 10px;">popd</a> <a href="/tags/pushd/" style="font-size: 10px;">pushd</a> <a href="/tags/qemu/" style="font-size: 10px;">qemu</a> <a href="/tags/regmap/" style="font-size: 10px;">regmap</a> <a href="/tags/script-animation/" style="font-size: 10px;">script animation</a> <a href="/tags/security/" style="font-size: 10px;">security</a> <a href="/tags/sensor/" style="font-size: 10px;">sensor</a> <a href="/tags/smtp/" style="font-size: 10px;">smtp</a> <a href="/tags/space/" style="font-size: 10px;">space</a> <a href="/tags/syscall/" style="font-size: 10px;">syscall</a> <a href="/tags/touchscreen/" style="font-size: 10px;">touchscreen</a> <a href="/tags/tr/" style="font-size: 10px;">tr</a> <a href="/tags/unifdef/" style="font-size: 10px;">unifdef</a> <a href="/tags/vim/" style="font-size: 10px;">vim</a> <a href="/tags/条件编译/" style="font-size: 10px;">条件编译</a> <a href="/tags/逆向/" style="font-size: 10px;">逆向</a>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap">
+    <h3 class="widget-title">归档</h3>
+    <div class="widget">
+      <ul class="archive-list"><li class="archive-list-item"><a class="archive-list-link" href="/archives/2016/05/">五月 2016</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/06/">六月 2015</a><span class="archive-list-count">4</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2015/03/">三月 2015</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/09/">九月 2014</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/08/">八月 2014</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/07/">七月 2014</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2014/04/">四月 2014</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/09/">九月 2013</a><span class="archive-list-count">1</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/08/">八月 2013</a><span class="archive-list-count">6</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/07/">七月 2013</a><span class="archive-list-count">8</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2013/05/">五月 2013</a><span class="archive-list-count">2</span></li><li class="archive-list-item"><a class="archive-list-link" href="/archives/2012/12/">十二月 2012</a><span class="archive-list-count">1</span></li></ul>
+    </div>
+  </div>
+
+  
+    
+  <div class="widget-wrap widget-list">
+    <h3 class="widget-title">链接</h3>
+    <div class="widget">
+      <ul>
+        
+          <li>
+            <a href="http://tinylab.org">TINYLAB</a>
+          </li>
+        
+          <li>
+            <a href="http://oss.lzu.edu.cn">LZUOSS</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+
+  
+  <div id="toTop" class="fa fa-chevron-up"></div>
+</aside>
+      
+    </div>
+    <footer id="footer">
+  
+  <div class="outer">
+    <div id="footer-info" class="inner">
+      &copy; 2016 Pingbo<br>
+      Powered by <a href="http://hexo.io/" target="_blank">Hexo</a>. Theme by <a href="http://github.com/ppoffice">PPOffice</a>
+    </div>
+  </div>
+</footer>
+    
+
+<script>
+  var disqus_shortname = 'miopecolab';
+  (function(){
+    var dsq = document.createElement('script');
+    dsq.type = 'text/javascript';
+    dsq.async = true;
+    dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+    (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+  })();
+</script>
+
+
+<script src="//ajax.useso.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
+
+
+  <link rel="stylesheet" href="/fancybox/jquery.fancybox.css">
+  <script src="/fancybox/jquery.fancybox.pack.js"></script>
+
+
+<script src="/js/script.js"></script>
+
+  </div>
+</body>
+</html>
